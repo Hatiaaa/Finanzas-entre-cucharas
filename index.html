@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entre Cucharas - Finanzas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              dark: {
+                bg: '#13131a',
+                card: '#1c1c24',
+                text: '#ffffff',
+                muted: '#9ca3af',
+              },
+              brand: {
+                purple: '#6c5dd3',
+                blue: '#3b82f6',
+                green: '#10b981',
+                orange: '#f59e0b',
+                pink: '#ec4899'
+              }
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
+  }
+}
+</script>
+</head>
+  <body class="bg-[#13131a] text-white font-sans antialiased selection:bg-purple-500 selection:text-white">
+    <div id="root"></div>
+  </body>
+</html>
