@@ -34,6 +34,7 @@ export interface Transaction {
   amount: number;
   description: string;
   hasAttachment: boolean;
+  quantity?: number; // Para ventas de unidades (ej: 300 almuerzos)
 }
 
 export interface DashboardKPIs {
@@ -44,4 +45,55 @@ export interface DashboardKPIs {
   incomeTrend: number; // vs previous month
   expenseTrend: number;
   netTrend: number;
+}
+
+// Restaurant Specific Models
+
+export enum UnitType {
+  KG = 'kg',
+  L = 'l',
+  UNIT = 'unidad',
+  PACK = 'paquete'
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  category: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface Ingredient {
+  id: string;
+  name: string;
+  unit: UnitType;
+  cost: number;
+  supplierId: string;
+  minStock: number;
+  currentStock: number;
+}
+
+export interface RecipeIngredient {
+  ingredientId: string;
+  amount: number;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  sellingPrice: number;
+  ingredients: RecipeIngredient[];
+  category?: string;
+}
+
+export interface DailyClosing {
+  id: string;
+  date: string;
+  accountId: string;
+  systemBalance: number;
+  physicalAmount: number;
+  difference: number;
+  notes?: string;
 }
