@@ -462,10 +462,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
             )}
           </div>
 
-          {/* Desglose por subcategoría */}
+          {/* Desglose por subcategoría - TOP 5 */}
           <div className="flex flex-wrap gap-3">
             {Object.entries(volumeData.breakdown)
-              .filter(([_, data]) => (data as { current: number; previous: number }).current > 0 || (data as { current: number; previous: number }).previous > 0)
+              .filter(([_, data]) => (data as { current: number; previous: number }).current > 0)
+              .sort((a, b) => (b[1] as any).current - (a[1] as any).current)
+              .slice(0, 5)
               .map(([name, dataValue], idx) => {
                 const data = dataValue as { current: number; previous: number };
                 const diff = data.current - data.previous;
@@ -490,6 +492,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
                   </div>
                 );
               })}
+
+            {Object.keys(volumeData.breakdown).length > 5 && (
+              <button
+                onClick={() => (window as any).onNavigate('salesVolume')}
+                className="bg-[#151E2B] border border-[#1E293B] hover:border-[#FFC72C] px-6 py-2 rounded-2xl flex flex-col items-center justify-center min-w-[100px] group transition-all"
+              >
+                <MoreHorizontal className="text-[#9ca3af] group-hover:text-[#FFC72C] mb-1" />
+                <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest group-hover:text-white">Ver todo</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Account, Category, TransactionType } from '../types';
-import { Upload, Save, RefreshCw } from 'lucide-react';
+import { Upload, Save, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface TransactionFormProps {
   accounts: Account[];
@@ -22,6 +22,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
   const [description, setDescription] = useState('');
   const [quantity, setQuantity] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Reset category selection when type changes
   useEffect(() => {
@@ -68,6 +69,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
     setQuantity('');
     setFile(null);
     setSubcategoryId('');
+
+    // Show success feedback
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
   };
 
   const filteredCategories = categories.filter(c => c.type === type);
@@ -253,7 +258,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
 
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-4">
+          {showSuccess && (
+            <div className="flex items-center gap-2 text-[#10b981] font-bold animate-bounce">
+              <CheckCircle size={20} />
+              ¡Registro Guardado!
+            </div>
+          )}
           <button
             type="submit"
             className={`px-8 py-3 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all ${mode === 'standard' ? 'bg-[#19A8C7] hover:bg-[#107287]' : 'bg-[#FF8A00] hover:bg-[#E67C00]'

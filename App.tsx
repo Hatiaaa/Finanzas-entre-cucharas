@@ -12,6 +12,7 @@ import { SuppliersView } from './components/SuppliersView';
 import { InventoryView } from './components/InventoryView';
 import { RecipesView } from './components/RecipesView';
 import { DailyClosingView } from './components/DailyClosingView';
+import { SalesVolumeView } from './components/SalesVolumeView';
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -70,7 +71,7 @@ function App() {
     setIsLoading(true);
     await FinanceService.addTransaction(data);
     await refreshData();
-    setView('dashboard');
+    // setView('dashboard'); // Removed to stay in the form for multiple entries
   };
 
   const handleUpdateTransaction = async (transaction: Transaction) => {
@@ -174,6 +175,7 @@ function App() {
           transactions={transactions}
           accounts={accounts}
           balances={balances}
+          onNavigate={setView}
         />
       )}
 
@@ -219,6 +221,13 @@ function App() {
           closings={closings}
           onAddClosing={handleAddClosing}
           onDeleteClosing={handleDeleteClosing}
+        />
+      )}
+
+      {view === 'salesVolume' && (
+        <SalesVolumeView
+          transactions={transactions}
+          onBack={() => setView('dashboard')}
         />
       )}
 

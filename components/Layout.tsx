@@ -16,7 +16,7 @@ import {
     Wallet
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'transaction' | 'settings' | 'history' | 'suppliers' | 'inventory' | 'recipes' | 'dailyClosing';
+export type View = 'dashboard' | 'transaction' | 'settings' | 'history' | 'suppliers' | 'inventory' | 'recipes' | 'dailyClosing' | 'salesVolume';
 
 interface LayoutProps {
     children: React.ReactNode;
