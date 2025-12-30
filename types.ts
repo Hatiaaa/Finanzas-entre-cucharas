@@ -6,7 +6,8 @@ export enum TransactionType {
 
 export enum AccountType {
   CASH = 'Efectivo',
-  BANK = 'Banco'
+  BANK = 'Banco',
+  CREDIT = 'Crédito'
 }
 
 export interface Category {
@@ -35,6 +36,7 @@ export interface Transaction {
   description: string;
   hasAttachment: boolean;
   quantity?: number; // Para ventas de unidades (ej: 300 almuerzos)
+  client?: string; // Para cuentas por cobrar (Opcional)
 }
 
 export interface DashboardKPIs {

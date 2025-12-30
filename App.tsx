@@ -190,23 +190,8 @@ function App() {
       {view === 'history' && (
         <History
           transactions={transactions}
-          accounts={accounts}
-          categories={categories}
-          onUpdateTransaction={handleUpdateTransaction}
           onDeleteTransaction={handleDeleteTransaction}
-        />
-      )}
-
-      {view === 'settings' && (
-        <Settings
-          accounts={accounts}
-          categories={categories}
-          onAddAccount={handleAddAccount}
-          onUpdateAccount={handleUpdateAccount}
-          onDeleteAccount={handleDeleteAccount}
-          onAddCategory={handleAddCategory}
-          onUpdateCategory={handleUpdateCategory}
-          onDeleteCategory={handleDeleteCategory}
+          refreshData={refreshData}
         />
       )}
 

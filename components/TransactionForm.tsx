@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Account, Category, TransactionType } from '../types';
+import { Account, Category, TransactionType, AccountType } from '../types';
 import { Upload, Save, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface TransactionFormProps {
@@ -21,6 +21,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [client, setClient] = useState(''); // New state for customer name
   const [file, setFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -44,7 +45,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
         amount: parseFloat(amount),
         description,
         hasAttachment: !!file,
-        quantity: quantity ? parseInt(quantity) : undefined
+        quantity: quantity ? parseInt(quantity) : undefined,
+        client: client || undefined
       });
     } else {
       if (accountId === toAccountId) {
@@ -67,6 +69,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
     setAmount('');
     setDescription('');
     setQuantity('');
+    setClient('');
     setFile(null);
     setSubcategoryId('');
 
@@ -174,6 +177,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
                   {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                 </select>
               </div>
+
+              {/* Campos condicionales para créditos */}
+              {accounts.find(a => a.id === accountId)?.type === AccountType.CREDIT && (
+                <div className="animate-fade-in">
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Cliente / Deudor (Opcional)</label>
+                  <input
+                    type="text"
+                    value={client}
+                    onChange={(e) => setClient(e.target.value)}
+                    placeholder="Ej: Juan Mecánico"
+                    className="w-full rounded-xl bg-[#0B131F] border border-[#ff8a00] text-white p-3 focus:ring-1 focus:ring-[#ff8a00] outline-none placeholder-gray-600 font-medium"
+                  />
+                </div>
+              )}
 
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>

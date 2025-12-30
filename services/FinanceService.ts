@@ -14,6 +14,7 @@ const DEFAULT_CATEGORIES = [
 const DEFAULT_ACCOUNTS = [
   { name: 'Caja General', initial_balance: 0, type: AccountType.CASH },
   { name: 'Banco Principal', initial_balance: 0, type: AccountType.BANK },
+  { name: 'Cuentas por Cobrar', initial_balance: 0, type: AccountType.CREDIT },
 ];
 
 export const FinanceService = {

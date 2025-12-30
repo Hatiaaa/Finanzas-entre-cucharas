@@ -16,7 +16,7 @@ import {
     Wallet
 } from 'lucide-react';
 
-export type View = 'dashboard' | 'transaction' | 'settings' | 'history' | 'suppliers' | 'inventory' | 'recipes' | 'dailyClosing' | 'salesVolume';
+export type View = 'dashboard' | 'transaction' | 'settings' | 'history' | 'suppliers' | 'inventory' | 'recipes' | 'dailyClosing' | 'salesVolume' | 'credits';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -78,6 +78,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                     <NavItem target="dashboard" icon={LayoutDashboard} label="Dashboard" />
                     <NavItem target="transaction" icon={PlusCircle} label="Registrar Movimiento" />
                     <NavItem target="history" icon={List} label="Historial" />
+                    <NavItem target="credits" icon={Wallet} label="Cobrar Créditos" />
 
                     <div className="text-xs font-bold text-[#6f6f7b] uppercase tracking-wider px-4 mb-2 mt-6">Gestión</div>
                     <NavItem target="suppliers" icon={Truck} label="Proveedores" />
