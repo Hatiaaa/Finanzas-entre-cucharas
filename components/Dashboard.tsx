@@ -13,6 +13,7 @@ interface DashboardProps {
   transactions: Transaction[];
   accounts: Account[];
   balances: { accountId: string; balance: number }[];
+  onNavigate?: (view: any) => void;
 }
 
 // Custom Colors matching the Dark UI reference
@@ -31,7 +32,7 @@ const COLORS = {
 
 const PIE_COLORS = [COLORS.purple, COLORS.orange, COLORS.pink, COLORS.green, COLORS.blue];
 
-export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, balances }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, balances, onNavigate }) => {
   const [comparisonPeriod, setComparisonPeriod] = useState<'month' | 'fortnight' | 'year'>('month');
   const [volumePeriod, setVolumePeriod] = useState<'month' | 'fortnight' | 'year' | 'custom'>('month');
   const [customStart, setCustomStart] = useState('');
@@ -495,7 +496,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
 
             {Object.keys(volumeData.breakdown).length > 5 && (
               <button
-                onClick={() => (window as any).onNavigate('salesVolume')}
+                onClick={() => onNavigate?.('salesVolume')}
                 className="bg-[#151E2B] border border-[#1E293B] hover:border-[#FFC72C] px-6 py-2 rounded-2xl flex flex-col items-center justify-center min-w-[100px] group transition-all"
               >
                 <MoreHorizontal className="text-[#9ca3af] group-hover:text-[#FFC72C] mb-1" />
