@@ -6,7 +6,6 @@ interface CreditsViewProps {
     transactions: Transaction[];
     accounts: Account[];
     onBack: () => void;
-    onBack: () => void;
     onPayCredit: (transactionId: string, toAccountId: string) => void;
     onUpdateTransaction: (transaction: Transaction) => void;
     onDeleteTransaction: (id: string) => void;
@@ -50,11 +49,7 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
         setEditingTx(null);
     };
 
-    // Filter transactions that are INCOMES in CREDIT accounts (meaning they are pending collection)
-    // We assume that if it's in a credit account, it's pending.
-    // When paid, we will move it out or create a transfer?
-    // Strategy: The credit account balance represents the total debt.
-    // The transactions in it are the debts.
+    // Filter transactions that are INCOMES in CREDIT accounts
     const creditTransacitons = useMemo(() => {
         const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
         return transactions.filter(t =>
@@ -69,12 +64,10 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
     const totalPending = creditTransacitons.reduce((acc, t) => acc + t.amount, 0);
 
     const handlePay = () => {
-        const handlePay = () => {
-            if (selectedTx && selectedPaymentAccount) {
-                onPayCredit(selectedTx.id, selectedPaymentAccount);
-                setSelectedTx(null);
-            }
-        };
+        if (selectedTx && selectedPaymentAccount) {
+            onPayCredit(selectedTx.id, selectedPaymentAccount);
+            setSelectedTx(null);
+        }
     };
 
     const cashAccounts = accounts.filter(a => a.type !== AccountType.CREDIT);
@@ -227,86 +220,83 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                     </div>
                 </div>
             )}
-        </div>
-            
-            {/* Edit Modal */ }
-    {
-        editingTx && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-                <div className="bg-[#151E2B] rounded-3xl border border-[#1E293B] shadow-2xl w-full max-w-md p-6">
-                    <div className="flex justify-between items-center mb-6 border-b border-[#1E293B] pb-4">
-                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Pencil size={20} className="text-[#19A8C7]" /> Editar Crédito
-                        </h3>
-                        <button onClick={() => setEditingTx(null)} className="text-gray-400 hover:text-white">
-                            <X size={24} />
-                        </button>
+
+            {/* Edit Modal */}
+            {editingTx && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-[#151E2B] rounded-3xl border border-[#1E293B] shadow-2xl w-full max-w-md p-6">
+                        <div className="flex justify-between items-center mb-6 border-b border-[#1E293B] pb-4">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Pencil size={20} className="text-[#19A8C7]" /> Editar Crédito
+                            </h3>
+                            <button onClick={() => setEditingTx(null)} className="text-gray-400 hover:text-white">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEdit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Cliente</label>
+                                <input
+                                    type="text"
+                                    value={editClient}
+                                    onChange={e => setEditClient(e.target.value)}
+                                    className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                    placeholder="Nombre del cliente"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Monto</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editAmount}
+                                    onChange={e => setEditAmount(e.target.value)}
+                                    className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Fecha</label>
+                                <input
+                                    type="date"
+                                    value={editDate}
+                                    onChange={e => setEditDate(e.target.value)}
+                                    className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Nota / Descripción</label>
+                                <input
+                                    type="text"
+                                    value={editDescription}
+                                    onChange={e => setEditDescription(e.target.value)}
+                                    className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingTx(null)}
+                                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-3 bg-[#19A8C7] hover:bg-[#107287] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#19A8C7]/20 flex items-center justify-center gap-2"
+                                >
+                                    <Save size={18} />
+                                    Guardar
+                                </button>
+                            </div>
+                        </form>
                     </div>
-
-                    <form onSubmit={handleSaveEdit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Cliente</label>
-                            <input
-                                type="text"
-                                value={editClient}
-                                onChange={e => setEditClient(e.target.value)}
-                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
-                                placeholder="Nombre del cliente"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Monto</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={editAmount}
-                                onChange={e => setEditAmount(e.target.value)}
-                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Fecha</label>
-                            <input
-                                type="date"
-                                value={editDate}
-                                onChange={e => setEditDate(e.target.value)}
-                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Nota / Descripción</label>
-                            <input
-                                type="text"
-                                value={editDescription}
-                                onChange={e => setEditDescription(e.target.value)}
-                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
-                            />
-                        </div>
-
-                        <div className="flex gap-3 pt-4">
-                            <button
-                                type="button"
-                                onClick={() => setEditingTx(null)}
-                                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                className="flex-1 py-3 bg-[#19A8C7] hover:bg-[#107287] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#19A8C7]/20 flex items-center justify-center gap-2"
-                            >
-                                <Save size={18} />
-                                Guardar
-                            </button>
-                        </div>
-                    </form>
                 </div>
-            </div>
-        )
-    }
-        </div >
+            )}
+        </div>
     );
 };
