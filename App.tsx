@@ -253,6 +253,8 @@ function App() {
           accounts={accounts}
           onBack={() => setView('dashboard')}
           onPayCredit={handlePayCredit}
+          onUpdateTransaction={handleUpdateTransaction}
+          onDeleteTransaction={handleDeleteTransaction}
         />
       )}
 

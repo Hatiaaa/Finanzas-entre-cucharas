@@ -1,18 +1,54 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, Account, TransactionType, AccountType } from '../types';
-import { ArrowLeft, Search, CheckCircle, Wallet, User, Calendar } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle, Wallet, User, Calendar, Pencil, Trash2, X, Save } from 'lucide-react';
 
 interface CreditsViewProps {
     transactions: Transaction[];
     accounts: Account[];
     onBack: () => void;
+    onBack: () => void;
     onPayCredit: (transactionId: string, toAccountId: string) => void;
+    onUpdateTransaction: (transaction: Transaction) => void;
+    onDeleteTransaction: (id: string) => void;
 }
 
-export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts, onBack, onPayCredit }) => {
+export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts, onBack, onPayCredit, onUpdateTransaction, onDeleteTransaction }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-    const [paymentAccount, setPaymentAccount] = useState(accounts.find(a => a.type === AccountType.CASH)?.id || '');
+    const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+
+    // Edit Form State
+    const [editClient, setEditClient] = useState('');
+    const [editAmount, setEditAmount] = useState('');
+    const [editDescription, setEditDescription] = useState('');
+    const [editDate, setEditDate] = useState('');
+
+    const paymentAccount = accounts.find(a => a.type === AccountType.CASH)?.id || '';
+    const [selectedPaymentAccount, setSelectedPaymentAccount] = useState(paymentAccount);
+
+    const openEditModal = (tx: Transaction) => {
+        setEditingTx(tx);
+        setEditClient(tx.client || '');
+        setEditAmount(tx.amount.toString());
+        setEditDescription(tx.description);
+        setEditDate(tx.date.split('T')[0]);
+    };
+
+    const handleSaveEdit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingTx) return;
+
+        const updatedTx: Transaction = {
+            ...editingTx,
+            client: editClient,
+            amount: parseFloat(editAmount),
+            description: editDescription,
+            date: editDate
+        };
+
+        onUpdateTransaction(updatedTx);
+        setEditingTx(null);
+    };
 
     // Filter transactions that are INCOMES in CREDIT accounts (meaning they are pending collection)
     // We assume that if it's in a credit account, it's pending.
@@ -33,10 +69,12 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
     const totalPending = creditTransacitons.reduce((acc, t) => acc + t.amount, 0);
 
     const handlePay = () => {
-        if (selectedTx && paymentAccount) {
-            onPayCredit(selectedTx.id, paymentAccount);
-            setSelectedTx(null);
-        }
+        const handlePay = () => {
+            if (selectedTx && selectedPaymentAccount) {
+                onPayCredit(selectedTx.id, selectedPaymentAccount);
+                setSelectedTx(null);
+            }
+        };
     };
 
     const cashAccounts = accounts.filter(a => a.type !== AccountType.CREDIT);
@@ -99,6 +137,21 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                             </span>
                         </div>
 
+                        <div className="flex justify-end gap-2 mb-4 relative z-10">
+                            <button
+                                onClick={() => openEditModal(tx)}
+                                className="p-2 text-gray-400 hover:text-[#19A8C7] hover:bg-white/5 rounded-lg transition-colors"
+                            >
+                                <Pencil size={18} />
+                            </button>
+                            <button
+                                onClick={() => onDeleteTransaction(tx.id)}
+                                className="p-2 text-gray-400 hover:text-[#ef4444] hover:bg-white/5 rounded-lg transition-colors"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+
                         <div className="mb-4 relative z-10">
                             <p className="text-gray-400 text-sm line-clamp-2">{tx.description}</p>
                             <div className="mt-2 flex gap-2">
@@ -142,14 +195,14 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                     {cashAccounts.map(acc => (
                                         <button
                                             key={acc.id}
-                                            onClick={() => setPaymentAccount(acc.id)}
-                                            className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all ${paymentAccount === acc.id
+                                            onClick={() => setSelectedPaymentAccount(acc.id)}
+                                            className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all ${selectedPaymentAccount === acc.id
                                                 ? 'bg-[#19A8C7]/10 border-[#19A8C7] text-white shadow-[0_0_15px_rgba(25,168,199,0.2)]'
                                                 : 'bg-[#0B131F] border-[#1E293B] text-gray-400 hover:bg-white/5'
                                                 }`}
                                         >
                                             <span className="font-bold">{acc.name}</span>
-                                            {paymentAccount === acc.id && <CheckCircle size={20} className="text-[#19A8C7]" />}
+                                            {selectedPaymentAccount === acc.id && <CheckCircle size={20} className="text-[#19A8C7]" />}
                                         </button>
                                     ))}
                                 </div>
@@ -175,5 +228,85 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                 </div>
             )}
         </div>
+            
+            {/* Edit Modal */ }
+    {
+        editingTx && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="bg-[#151E2B] rounded-3xl border border-[#1E293B] shadow-2xl w-full max-w-md p-6">
+                    <div className="flex justify-between items-center mb-6 border-b border-[#1E293B] pb-4">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Pencil size={20} className="text-[#19A8C7]" /> Editar Crédito
+                        </h3>
+                        <button onClick={() => setEditingTx(null)} className="text-gray-400 hover:text-white">
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSaveEdit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Cliente</label>
+                            <input
+                                type="text"
+                                value={editClient}
+                                onChange={e => setEditClient(e.target.value)}
+                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                placeholder="Nombre del cliente"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Monto</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={editAmount}
+                                onChange={e => setEditAmount(e.target.value)}
+                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Fecha</label>
+                            <input
+                                type="date"
+                                value={editDate}
+                                onChange={e => setEditDate(e.target.value)}
+                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Nota / Descripción</label>
+                            <input
+                                type="text"
+                                value={editDescription}
+                                onChange={e => setEditDescription(e.target.value)}
+                                className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] p-3 text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                            <button
+                                type="button"
+                                onClick={() => setEditingTx(null)}
+                                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 py-3 bg-[#19A8C7] hover:bg-[#107287] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#19A8C7]/20 flex items-center justify-center gap-2"
+                            >
+                                <Save size={18} />
+                                Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )
+    }
+        </div >
     );
 };
