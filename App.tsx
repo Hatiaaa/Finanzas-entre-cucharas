@@ -70,16 +70,30 @@ function App() {
 
   // Handlers
   const handleAddTransaction = async (data: any) => {
-    setIsLoading(true);
-    await FinanceService.addTransaction(data);
-    await refreshData();
-    // setView('dashboard'); // Removed to stay in the form for multiple entries
+    try {
+      setIsLoading(true);
+      await FinanceService.addTransaction(data);
+      await refreshData();
+      // setView('dashboard'); 
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      alert("Error al guardar el movimiento. Verifique su conexión.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateTransaction = async (transaction: Transaction) => {
-    setIsLoading(true);
-    await FinanceService.updateTransaction(transaction);
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.updateTransaction(transaction);
+      await refreshData();
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      alert("Error al actualizar el movimiento. Intente nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteTransaction = (id: string) => {
@@ -88,24 +102,43 @@ function App() {
       title: 'Eliminar Movimiento',
       message: '¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.',
       onConfirm: async () => {
-        setIsLoading(true);
-        await FinanceService.deleteTransaction(id);
-        await refreshData();
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          setIsLoading(true);
+          await FinanceService.deleteTransaction(id);
+          await refreshData();
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error("Error deleting transaction:", error);
+          alert("Error al eliminar. Intente nuevamente.");
+        } finally {
+          setIsLoading(false);
+        }
       }
     });
   };
 
   const handleAddAccount = async (data: any) => {
-    setIsLoading(true);
-    await FinanceService.addAccount(data);
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.addAccount(data);
+      await refreshData();
+    } catch (error) {
+      console.error("Error adding account:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateAccount = async (account: Account) => {
-    setIsLoading(true);
-    await FinanceService.updateAccount(account);
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.updateAccount(account);
+      await refreshData();
+    } catch (error) {
+      console.error("Error updating account:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteAccount = (id: string) => {
@@ -114,24 +147,42 @@ function App() {
       title: 'Eliminar Cuenta',
       message: '¿Eliminar esta cuenta? Se perderán los saldos asociados.',
       onConfirm: async () => {
-        setIsLoading(true);
-        await FinanceService.deleteAccount(id);
-        await refreshData();
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          setIsLoading(true);
+          await FinanceService.deleteAccount(id);
+          await refreshData();
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error("Error deleting account:", error);
+        } finally {
+          setIsLoading(false);
+        }
       }
     });
   };
 
   const handleAddCategory = async (data: any) => {
-    setIsLoading(true);
-    await FinanceService.addCategory(data);
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.addCategory(data);
+      await refreshData();
+    } catch (error) {
+      console.error("Error adding category:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateCategory = async (category: Category) => {
-    setIsLoading(true);
-    await FinanceService.updateCategory(category);
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.updateCategory(category);
+      await refreshData();
+    } catch (error) {
+      console.error("Error updating category:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteCategory = (id: string) => {
@@ -140,10 +191,16 @@ function App() {
       title: 'Eliminar Categoría',
       message: '¿Estás seguro de que quieres eliminar esta categoría?',
       onConfirm: async () => {
-        setIsLoading(true);
-        await FinanceService.deleteCategory(id);
-        await refreshData();
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          setIsLoading(true);
+          await FinanceService.deleteCategory(id);
+          await refreshData();
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        } catch (error) {
+          console.error("Error deleting category:", error);
+        } finally {
+          setIsLoading(false);
+        }
       }
     });
   };
