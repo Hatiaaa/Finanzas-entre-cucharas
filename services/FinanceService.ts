@@ -125,7 +125,8 @@ export const FinanceService = {
       accountId: tx.account_id,
       toAccountId: tx.to_account_id,
       quantity: tx.quantity,
-      hasAttachment: tx.has_attachment
+      hasAttachment: tx.has_attachment,
+      client: tx.client
     }));
   },
 
@@ -157,7 +158,8 @@ export const FinanceService = {
       account_id: tx.accountId,
       to_account_id: tx.toAccountId,
       quantity: tx.quantity,
-      has_attachment: tx.hasAttachment
+      has_attachment: tx.hasAttachment,
+      client: tx.client
     }).eq('id', tx.id);
     if (error) throw error;
   },
