@@ -27,9 +27,21 @@ export const FinanceService = {
       }
 
       // Check if accounts exist
-      const { data: accs, error: aErr } = await supabase.from('accounts').select('id').limit(1);
-      if (!aErr && (!accs || accs.length === 0)) {
-        await supabase.from('accounts').insert(DEFAULT_ACCOUNTS);
+      const { data: accs, error: aErr } = await supabase.from('accounts').select('id, type');
+      if (!aErr) {
+        if (!accs || accs.length === 0) {
+          await supabase.from('accounts').insert(DEFAULT_ACCOUNTS);
+        } else {
+          // Ensure CREDIT account exists for existing users
+          const hasCredit = accs.some(a => a.type === AccountType.CREDIT);
+          if (!hasCredit) {
+            await supabase.from('accounts').insert({
+              name: 'Cuentas por Cobrar',
+              initial_balance: 0,
+              type: AccountType.CREDIT
+            });
+          }
+        }
       }
     } catch (e) {
       console.error('Initialization error:', e);

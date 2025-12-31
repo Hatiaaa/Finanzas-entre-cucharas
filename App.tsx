@@ -219,8 +219,10 @@ function App() {
       {view === 'history' && (
         <History
           transactions={transactions}
+          accounts={accounts}
+          categories={categories}
+          onUpdateTransaction={handleUpdateTransaction}
           onDeleteTransaction={handleDeleteTransaction}
-          refreshData={refreshData}
         />
       )}
 
