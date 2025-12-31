@@ -377,7 +377,7 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
                   return (
                     <tr key={t.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-6 py-4 text-sm text-gray-300 whitespace-nowrap">
-                        {new Date(t.date).toLocaleDateString()}
+                        {new Date(t.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <div className="flex items-center gap-2" title={t.type}>

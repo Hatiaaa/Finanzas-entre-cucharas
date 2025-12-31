@@ -624,7 +624,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
                 <div>
                   <p className="text-white font-medium">{t.subcategory || t.category}</p>
                   <p className="text-gray-500 text-xs flex items-center gap-1">
-                    <Calendar size={12} /> {new Date(t.date).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })}
+                    <Calendar size={12} /> {new Date(t.date).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' })}
                   </p>
                 </div>
               </div>

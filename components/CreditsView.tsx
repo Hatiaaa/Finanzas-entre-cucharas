@@ -91,7 +91,7 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-white text-lg">{tx.client || 'Cliente Sin Nombre'}</h3>
-                                    <p className="text-xs text-gray-500 font-mono">{new Date(tx.date).toLocaleDateString()}</p>
+                                    <p className="text-xs text-gray-500 font-mono">{new Date(tx.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })}</p>
                                 </div>
                             </div>
                             <span className="bg-[#FF8A00]/10 text-[#FF8A00] px-3 py-1 rounded-lg text-sm font-bold border border-[#FF8A00]/20">
@@ -144,8 +144,8 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                             key={acc.id}
                                             onClick={() => setPaymentAccount(acc.id)}
                                             className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all ${paymentAccount === acc.id
-                                                    ? 'bg-[#19A8C7]/10 border-[#19A8C7] text-white shadow-[0_0_15px_rgba(25,168,199,0.2)]'
-                                                    : 'bg-[#0B131F] border-[#1E293B] text-gray-400 hover:bg-white/5'
+                                                ? 'bg-[#19A8C7]/10 border-[#19A8C7] text-white shadow-[0_0_15px_rgba(25,168,199,0.2)]'
+                                                : 'bg-[#0B131F] border-[#1E293B] text-gray-400 hover:bg-white/5'
                                                 }`}
                                         >
                                             <span className="font-bold">{acc.name}</span>
