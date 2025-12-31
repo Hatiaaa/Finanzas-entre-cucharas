@@ -95,6 +95,9 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                         <LogOut size={20} />
                         <span className="font-medium text-sm">Cerrar Sesión</span>
                     </button>
+                    <div className="px-4 mt-2 text-center">
+                        <span className="text-[10px] text-gray-600 font-mono">v1.3.0 (Créditos)</span>
+                    </div>
                 </div>
             </aside>
 
