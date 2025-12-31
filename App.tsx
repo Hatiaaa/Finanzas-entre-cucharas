@@ -13,6 +13,8 @@ import { InventoryView } from './components/InventoryView';
 import { RecipesView } from './components/RecipesView';
 import { DailyClosingView } from './components/DailyClosingView';
 import { SalesVolumeView } from './components/SalesVolumeView';
+import { CreditsView } from './components/CreditsView';
+import { TransactionType } from './types';
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -156,6 +158,33 @@ function App() {
     setIsLoading(true);
     await FinanceService.deleteClosing(id);
     await refreshData();
+    await refreshData();
+  };
+
+  const handlePayCredit = async (transactionId: string, toAccountId: string) => {
+    setIsLoading(true);
+    try {
+      const originalTx = transactions.find(t => t.id === transactionId);
+      if (!originalTx) return;
+
+      await FinanceService.addTransaction({
+        date: new Date().toISOString(),
+        type: TransactionType.TRANSFER,
+        accountId: originalTx.accountId,
+        toAccountId: toAccountId,
+        amount: originalTx.amount,
+        category: 'Cobro de Crédito',
+        description: `Cobro de: ${originalTx.description} (${originalTx.client})`,
+        hasAttachment: false
+      });
+
+      await refreshData();
+      setView('dashboard');
+    } catch (error) {
+      console.error("Error paying credit", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -213,6 +242,28 @@ function App() {
         <SalesVolumeView
           transactions={transactions}
           onBack={() => setView('dashboard')}
+        />
+      )}
+
+      {view === 'credits' && (
+        <CreditsView
+          transactions={transactions}
+          accounts={accounts}
+          onBack={() => setView('dashboard')}
+          onPayCredit={handlePayCredit}
+        />
+      )}
+
+      {view === 'settings' && (
+        <Settings
+          accounts={accounts}
+          categories={categories}
+          onAddAccount={handleAddAccount}
+          onUpdateAccount={handleUpdateAccount}
+          onDeleteAccount={handleDeleteAccount}
+          onAddCategory={handleAddCategory}
+          onUpdateCategory={handleUpdateCategory}
+          onDeleteCategory={handleDeleteCategory}
         />
       )}
 
