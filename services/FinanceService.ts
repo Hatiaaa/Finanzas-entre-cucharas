@@ -141,7 +141,8 @@ export const FinanceService = {
       account_id: tx.accountId,
       to_account_id: tx.toAccountId,
       quantity: tx.quantity,
-      has_attachment: tx.hasAttachment
+      has_attachment: tx.hasAttachment,
+      client: tx.client
     }]).select().single();
     if (error) throw error;
     return data;

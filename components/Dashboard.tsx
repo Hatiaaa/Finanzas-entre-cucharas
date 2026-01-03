@@ -39,6 +39,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
   const [customEnd, setCustomEnd] = useState('');
 
   // --- Lógica de Volumen (Unidades Vendidas) ---
+  const [volumeMonth, setVolumeMonth] = useState(new Date().getMonth());
+  const [volumeYear, setVolumeYear] = useState(new Date().getFullYear());
+
   const volumeData = useMemo(() => {
     let quantity = 0;
     let previousQuantity = 0;
@@ -46,6 +49,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     let start, end, startPrev, endPrev;
 
     const getQuantity = (s: Date, e: Date) => {
+      // Ajuste de fin de día
+      e.setHours(23, 59, 59, 999);
+
       return transactions.reduce((acc, t) => {
         const d = new Date(t.date);
         if (t.type === TransactionType.INCOME && d >= s && d <= e) {
@@ -60,11 +66,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       end = new Date(customEnd);
       end.setHours(23, 59, 59, 999);
     } else if (volumePeriod === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      // Usar mes seleccionado en vez de actual
+      start = new Date(volumeYear, volumeMonth, 1);
+      end = new Date(volumeYear, volumeMonth + 1, 0);
 
-      startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      endPrev = new Date(now.getFullYear(), now.getMonth(), 0);
+      startPrev = new Date(volumeYear, volumeMonth - 1, 1);
+      endPrev = new Date(volumeYear, volumeMonth, 0);
+
     } else if (volumePeriod === 'year') {
       start = new Date(now.getFullYear(), 0, 1);
       end = new Date(now.getFullYear(), 11, 31);
@@ -131,10 +139,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       previousQuantity,
       percentage,
       breakdown,
-      periodLabel: volumePeriod === 'custom' ? 'Personalizado' : volumePeriod === 'month' ? 'Este Mes' : volumePeriod === 'year' ? 'Este Año' : 'Esta Quincena',
+      periodLabel: volumePeriod === 'custom' ? 'Personalizado' : volumePeriod === 'month' ? 'Mes Seleccionado' : volumePeriod === 'year' ? 'Este Año' : 'Esta Quincena',
       prevLabel
     };
-  }, [transactions, volumePeriod, customStart, customEnd]);
+  }, [transactions, volumePeriod, customStart, customEnd, volumeMonth, volumeYear]);
+
+  const [expenseMonth, setExpenseMonth] = useState(new Date().getMonth());
+  const [expenseYear, setExpenseYear] = useState(new Date().getFullYear());
+
+  const monthlyExpenses = useMemo(() => {
+    return transactions
+      .filter(t => {
+        const d = new Date(t.date);
+        return t.type === TransactionType.EXPENSE &&
+          d.getMonth() === expenseMonth &&
+          d.getFullYear() === expenseYear;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, expenseMonth, expenseYear]);
 
   // --- KPIs Dinámicos ---
   const kpis = useMemo(() => {
@@ -158,6 +180,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     return { income, expense, totalBalance };
   }, [transactions, balances]);
 
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
   // --- Lógica de Comparativa ---
   const comparisonData = useMemo(() => {
     const now = new Date();
@@ -166,21 +191,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     let previousLabel = '';
 
     const getIncomeForPeriod = (start: Date, end: Date) => {
+      // Ajuste para incluir todo el día final
+      end.setHours(23, 59, 59, 999);
+
       return transactions
         .filter(t => {
           const d = new Date(t.date);
+          // Convertir a fecha local para comparación justa si se guardó en UTC pero queremos rangos locales
+          // O mejor, usar comparaciones de timestamp que son agnósticas
           return t.type === TransactionType.INCOME && d >= start && d <= end;
         })
         .reduce((sum, t) => sum + t.amount, 0);
     };
 
     if (comparisonPeriod === 'month') {
-      // Este Mes vs Mes Anterior
-      const startCurrent = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endCurrent = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      // Mes Seleccionado vs Mes Anterior
+      // Usar selectedMonth y selectedYear
+      const startCurrent = new Date(selectedYear, selectedMonth, 1);
+      const endCurrent = new Date(selectedYear, selectedMonth + 1, 0);
 
-      const startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const endPrev = new Date(now.getFullYear(), now.getMonth(), 0);
+      // Mes anterior (maneja cambio de año automáticamente)
+      const startPrev = new Date(selectedYear, selectedMonth - 1, 1);
+      const endPrev = new Date(selectedYear, selectedMonth, 0);
 
       currentAmount = getIncomeForPeriod(startCurrent, endCurrent);
       previousAmount = getIncomeForPeriod(startPrev, endPrev);
@@ -227,7 +259,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     const percentage = previousAmount > 0 ? (diff / previousAmount) * 100 : 0;
 
     return { currentAmount, previousAmount, percentage, previousLabel };
-  }, [transactions, comparisonPeriod]);
+  }, [transactions, comparisonPeriod, selectedMonth, selectedYear]);
 
 
   // --- Datos Gráfico Evolución (Análisis Mensual) ---
@@ -311,19 +343,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
         </div>
       </div>
 
-      {/* Tarjeta Total Gastos (NUEVO) */}
+      {/* Tarjeta Comparativa de Ventas */}
       <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-[#151E2B] p-6 rounded-3xl shadow-lg relative overflow-hidden group">
-        <div className="flex justify-between items-start z-10 relative">
-          <div>
-            <p className="text-gray-400 text-sm font-medium mb-1">Gastos del Mes</p>
-            <h3 className="text-3xl font-bold text-white mb-2">${kpis.expense.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[#FF8A00] text-xs font-bold bg-[#FF8A00]/10 px-2 py-1 rounded-full w-fit">
-              <ArrowDownRight size={14} />
-              <span>Salidas</span>
+        <div className="flex flex-col gap-2 z-10 relative">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-gray-400 text-sm font-medium mb-1">Gastos del Mes</p>
+              <div className="flex gap-1 mb-2">
+                <select
+                  value={expenseMonth}
+                  onChange={(e) => setExpenseMonth(Number(e.target.value))}
+                  className="bg-[#0B131F] text-white text-[10px] border border-[#1E293B] rounded px-1 outline-none focus:border-[#FF8A00] w-14"
+                >
+                  {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map((m, i) => (
+                    <option key={i} value={i}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={expenseYear}
+                  onChange={(e) => setExpenseYear(Number(e.target.value))}
+                  className="bg-[#0B131F] text-white text-[10px] border border-[#1E293B] rounded px-1 outline-none focus:border-[#FF8A00]"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <h3 className="text-3xl font-bold text-white mb-2">${monthlyExpenses.toLocaleString()}</h3>
+            </div>
+            <div className="bg-[#FF8A00]/20 p-2 rounded-xl">
+              <TrendingDown size={20} className="text-[#FF8A00]" />
             </div>
           </div>
-          <div className="bg-[#FF8A00]/20 p-2 rounded-xl">
-            <TrendingDown size={20} className="text-[#FF8A00]" />
+          <div className="flex items-center gap-1 text-[#FF8A00] text-xs font-bold bg-[#FF8A00]/10 px-2 py-1 rounded-full w-fit">
+            <ArrowDownRight size={14} />
+            <span>Salidas</span>
           </div>
         </div>
         {/* Decoración de fondo */}
@@ -334,7 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
 
       {/* Tarjeta Comparativa de Ventas */}
       <div className="col-span-12 lg:col-span-6 bg-[#151E2B] p-6 rounded-3xl shadow-lg relative overflow-hidden">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <p className="text-gray-400 text-sm font-medium">Comparativa de Ingresos</p>
@@ -354,20 +408,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
             </div>
           </div>
 
-          {/* Selector de Periodo */}
-          <div className="flex bg-[#0B131F] rounded-xl p-1 border border-[#1E293B]">
-            <button
-              onClick={() => setComparisonPeriod('month')}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${comparisonPeriod === 'month' ? 'bg-[#19A8C7] text-white' : 'text-gray-400 hover:text-white'}`}
-            >Mes</button>
-            <button
-              onClick={() => setComparisonPeriod('fortnight')}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${comparisonPeriod === 'fortnight' ? 'bg-[#19A8C7] text-white' : 'text-gray-400 hover:text-white'}`}
-            >Quincena</button>
-            <button
-              onClick={() => setComparisonPeriod('year')}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${comparisonPeriod === 'year' ? 'bg-[#19A8C7] text-white' : 'text-gray-400 hover:text-white'}`}
-            >Año</button>
+          <div className="flex flex-col items-end gap-2">
+            {/* Selector de Periodo */}
+            <div className="flex bg-[#0B131F] rounded-xl p-1 border border-[#1E293B]">
+              <button
+                onClick={() => setComparisonPeriod('month')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${comparisonPeriod === 'month' ? 'bg-[#19A8C7] text-white' : 'text-gray-400 hover:text-white'}`}
+              >Mes</button>
+              <button
+                onClick={() => setComparisonPeriod('fortnight')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${comparisonPeriod === 'fortnight' ? 'bg-[#19A8C7] text-white' : 'text-gray-400 hover:text-white'}`}
+              >Quincena</button>
+              <button
+                onClick={() => setComparisonPeriod('year')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${comparisonPeriod === 'year' ? 'bg-[#19A8C7] text-white' : 'text-gray-400 hover:text-white'}`}
+              >Año</button>
+            </div>
+
+            {/* Selector de Mes/Año (Solo visible si es Mes) */}
+            {comparisonPeriod === 'month' && (
+              <div className="flex gap-2 animate-fade-in">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="bg-[#0B131F] text-white text-xs border border-[#1E293B] rounded-lg px-2 py-1 outline-none focus:border-[#19A8C7]"
+                >
+                  {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map((m, i) => (
+                    <option key={i} value={i}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="bg-[#0B131F] text-white text-xs border border-[#1E293B] rounded-lg px-2 py-1 outline-none focus:border-[#19A8C7]"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -432,7 +512,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex bg-[#0B131F] rounded-xl p-1 border border-[#1E293B]">
+            <div className="flex bg-[#0B131F] rounded-xl p-1 border border-[#1E293B] items-center">
               <button onClick={() => setVolumePeriod('fortnight')} className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${volumePeriod === 'fortnight' ? 'bg-[#FFC72C] text-black' : 'text-gray-400 hover:text-white'}`}>Quincena</button>
               <button onClick={() => setVolumePeriod('month')} className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${volumePeriod === 'month' ? 'bg-[#FFC72C] text-black' : 'text-gray-400 hover:text-white'}`}>Mes</button>
               <button onClick={() => setVolumePeriod('year')} className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${volumePeriod === 'year' ? 'bg-[#FFC72C] text-black' : 'text-gray-400 hover:text-white'}`}>Año</button>
@@ -440,6 +520,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
             </div>
           </div>
         </div>
+
+        {/* Selectores Mes/Año Específicos para Volumen de Ventas */}
+        {volumePeriod === 'month' && (
+          <div className="flex gap-2 mb-4 justify-end animate-fade-in">
+            <select
+              value={volumeMonth}
+              onChange={(e) => setVolumeMonth(Number(e.target.value))}
+              className="bg-[#0B131F] text-white text-xs border border-[#1E293B] rounded-lg px-2 py-1 outline-none focus:border-[#FFC72C]"
+            >
+              {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map((m, i) => (
+                <option key={i} value={i}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={volumeYear}
+              onChange={(e) => setVolumeYear(Number(e.target.value))}
+              className="bg-[#0B131F] text-white text-xs border border-[#1E293B] rounded-lg px-2 py-1 outline-none focus:border-[#FFC72C]"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {volumePeriod === 'custom' && (
           <div className="mt-4 flex flex-wrap gap-4 items-center bg-[#0B131F] p-3 rounded-xl border border-[#1E293B] animate-fade-in">

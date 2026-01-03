@@ -61,6 +61,19 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
         );
     }, [transactions, accounts, searchTerm]);
 
+    // Group transactions by Client
+    const groupedTransactions = useMemo(() => {
+        const groups: { [key: string]: Transaction[] } = {};
+        creditTransacitons.forEach(tx => {
+            const clientName = tx.client?.trim() || 'Cliente Sin Nombre';
+            if (!groups[clientName]) {
+                groups[clientName] = [];
+            }
+            groups[clientName].push(tx);
+        });
+        return groups;
+    }, [creditTransacitons]);
+
     const totalPending = creditTransacitons.reduce((acc, t) => acc + t.amount, 0);
 
     const handlePay = () => {
@@ -108,60 +121,79 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
             </div>
 
             {/* List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {creditTransacitons.map(tx => (
-                    <div key={tx.id} className="bg-[#151E2B] border border-[#1E293B] rounded-3xl p-5 hover:border-[#19A8C7]/50 transition-all shadow-lg group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <Wallet size={64} />
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.entries(groupedTransactions).map(([clientName, txs]: [string, Transaction[]]) => {
+                    const clientTotal = txs.reduce((sum, t) => sum + t.amount, 0);
+                    return (
+                        <div key={clientName} className="bg-[#151E2B] border border-[#1E293B] rounded-3xl p-5 hover:border-[#19A8C7]/50 transition-all shadow-lg group relative overflow-hidden flex flex-col h-full">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                <Wallet size={80} />
+                            </div>
 
-                        <div className="flex justify-between items-start mb-4 relative z-10">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-[#19A8C7]/10 flex items-center justify-center text-[#19A8C7]">
-                                    <User size={20} />
+                            {/* Client Header */}
+                            <div className="flex justify-between items-center mb-4 relative z-10 border-b border-[#1E293B] pb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-[#19A8C7]/10 flex items-center justify-center text-[#19A8C7]">
+                                        <User size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-white text-lg capitalize">{clientName}</h3>
+                                        <p className="text-xs text-gray-500 font-mono">{txs.length} movimiento{txs.length !== 1 ? 's' : ''}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-white text-lg">{tx.client || 'Cliente Sin Nombre'}</h3>
-                                    <p className="text-xs text-gray-500 font-mono">{new Date(tx.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })}</p>
+                                <div className="text-right">
+                                    <span className="block text-xs text-gray-500 uppercase font-bold">Total</span>
+                                    <span className="text-[#FF8A00] text-xl font-bold">
+                                        ${clientTotal.toLocaleString()}
+                                    </span>
                                 </div>
                             </div>
-                            <span className="bg-[#FF8A00]/10 text-[#FF8A00] px-3 py-1 rounded-lg text-sm font-bold border border-[#FF8A00]/20">
-                                ${tx.amount.toLocaleString()}
-                            </span>
-                        </div>
 
-                        <div className="flex justify-end gap-2 mb-4 relative z-10">
-                            <button
-                                onClick={() => openEditModal(tx)}
-                                className="p-2 text-gray-400 hover:text-[#19A8C7] hover:bg-white/5 rounded-lg transition-colors"
-                            >
-                                <Pencil size={18} />
-                            </button>
-                            <button
-                                onClick={() => onDeleteTransaction(tx.id)}
-                                className="p-2 text-gray-400 hover:text-[#ef4444] hover:bg-white/5 rounded-lg transition-colors"
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        </div>
+                            {/* Transactions List */}
+                            <div className="flex-1 space-y-3 mb-4 relative z-10 max-h-60 overflow-y-auto pr-1">
+                                {txs.map(tx => (
+                                    <div key={tx.id} className="bg-[#0B131F] rounded-xl p-3 border border-[#1E293B] hover:bg-white/5 transition-colors group/item">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="text-white font-medium text-sm">{tx.description}</p>
+                                                <div className="flex gap-2 items-center mt-1">
+                                                    <Calendar size={12} className="text-gray-500" />
+                                                    <span className="text-xs text-gray-500 font-mono">{new Date(tx.date).toLocaleDateString('es-ES', { timeZone: 'UTC' })}</span>
+                                                </div>
+                                            </div>
+                                            <span className="font-bold text-[#19A8C7] text-sm">${tx.amount.toLocaleString()}</span>
+                                        </div>
 
-                        <div className="mb-4 relative z-10">
-                            <p className="text-gray-400 text-sm line-clamp-2">{tx.description}</p>
-                            <div className="mt-2 flex gap-2">
-                                <span className="text-[10px] bg-white/5 text-gray-500 px-2 py-1 rounded border border-white/5">{tx.category}</span>
-                                {tx.subcategory && <span className="text-[10px] bg-white/5 text-gray-500 px-2 py-1 rounded border border-white/5">{tx.subcategory}</span>}
+                                        {/* Actions per item */}
+                                        <div className="flex justify-end gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => openEditModal(tx)}
+                                                className="p-1.5 text-gray-400 hover:text-[#19A8C7] hover:bg-white/10 rounded-lg transition-colors"
+                                                title="Editar"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteTransaction(tx.id)}
+                                                className="p-1.5 text-gray-400 hover:text-[#ef4444] hover:bg-white/10 rounded-lg transition-colors"
+                                                title="Eliminar"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedTx(tx)}
+                                                className="p-1.5 text-gray-400 hover:text-[#10b981] hover:bg-white/10 rounded-lg transition-colors"
+                                                title="Cobrar este movimiento"
+                                            >
+                                                <CheckCircle size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-
-                        <button
-                            onClick={() => setSelectedTx(tx)}
-                            className="w-full py-3 bg-[#0B131F] hover:bg-[#10b981]/10 border border-[#1E293B] hover:border-[#10b981] text-gray-400 hover:text-[#10b981] rounded-xl font-bold transition-all flex items-center justify-center gap-2 relative z-10"
-                        >
-                            <CheckCircle size={18} />
-                            Marcar como Cobrado
-                        </button>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {creditTransacitons.length === 0 && (
                     <div className="col-span-full py-20 text-center text-gray-500 bg-[#151E2B] rounded-3xl border border-[#1E293B] border-dashed">
