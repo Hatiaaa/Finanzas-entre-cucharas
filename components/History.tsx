@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Transaction, Account, Category, TransactionType } from '../types';
+import { Transaction, Account, Category, TransactionType, AccountType } from '../types';
 import { Search, Filter, Download, Calendar, ArrowUpCircle, ArrowDownCircle, RefreshCw, X, Pencil, Save, Trash2 } from 'lucide-react';
 
 interface HistoryProps {
@@ -70,7 +70,12 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
 
   // --- Lógica de Filtrado ---
   const filteredData = useMemo(() => {
+    const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
+
     return transactions.filter(t => {
+      // Exclude pending credit transactions from History
+      if (creditAccountIds.includes(t.accountId)) return false;
+
       const tDate = new Date(t.date);
       const start = startDate ? new Date(startDate) : null;
       const end = endDate ? new Date(endDate) : null;
