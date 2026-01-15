@@ -224,15 +224,13 @@ function App() {
       const originalTx = transactions.find(t => t.id === transactionId);
       if (!originalTx) return;
 
-      await FinanceService.addTransaction({
+      // Move transaction to the destination account (e.g. Cash)
+      // This "pays" the credit by converting it into a realized income in the cash account
+      await FinanceService.updateTransaction({
+        ...originalTx,
         date: new Date().toISOString(),
-        type: TransactionType.TRANSFER,
-        accountId: originalTx.accountId,
-        toAccountId: toAccountId,
-        amount: originalTx.amount,
-        category: 'Cobro de Crédito',
-        description: `Cobro de: ${originalTx.description} (${originalTx.client})`,
-        hasAttachment: false
+        accountId: toAccountId,
+        description: `${originalTx.description} (Cobrado)`,
       });
 
       await refreshData();

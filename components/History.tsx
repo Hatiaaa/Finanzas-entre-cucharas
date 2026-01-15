@@ -15,6 +15,8 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterSubcategory, setFilterSubcategory] = useState<string>('all');
+  const [filterAccountId, setFilterAccountId] = useState<string>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -85,14 +87,37 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
       // Filtro de Categoría
       const matchesCategory = filterCategory === 'all' || t.category === filterCategory;
 
+      // Filtro de Subcategoría
+      const matchesSubcategory = filterSubcategory === 'all' || t.subcategory === filterSubcategory;
+
+      // Filtro de Cuenta
+      const matchesAccount = filterAccountId === 'all' || t.accountId === filterAccountId;
+
       // Filtro de Fechas
       let matchesDate = true;
       if (start) matchesDate = matchesDate && tDate >= start;
       if (end) matchesDate = matchesDate && tDate <= end;
 
-      return matchesText && matchesType && matchesCategory && matchesDate;
+      return matchesText && matchesType && matchesCategory && matchesSubcategory && matchesAccount && matchesDate;
     });
-  }, [transactions, searchTerm, filterType, filterCategory, startDate, endDate, accounts]);
+  }, [transactions, searchTerm, filterType, filterCategory, filterSubcategory, filterAccountId, startDate, endDate, accounts]);
+
+  // --- Cálculos de Totales ---
+  const { totalIncome, totalExpense, totalBalance } = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+
+    filteredData.forEach(t => {
+      if (t.type === TransactionType.INCOME) income += t.amount;
+      if (t.type === TransactionType.EXPENSE) expense += t.amount;
+    });
+
+    return {
+      totalIncome: income,
+      totalExpense: expense,
+      totalBalance: income - expense
+    };
+  }, [filteredData]);
 
   // --- Exportar a CSV ---
   const downloadCSV = () => {
@@ -123,6 +148,8 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
     setSearchTerm('');
     setFilterType('all');
     setFilterCategory('all');
+    setFilterSubcategory('all');
+    setFilterAccountId('all');
     setStartDate('');
     setEndDate('');
   };
@@ -139,6 +166,12 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
   const filteredCategoriesForEdit = categories.filter(c => c.type === editType);
   const selectedCategoryObj = categories.find(c => c.id === editCategoryId);
   const availableSubcategories = selectedCategoryObj?.subcategories || [];
+
+  // Categorías filtradas para el buscador (Cascada)
+  const filteredCategoriesForFilter = useMemo(() => {
+    if (filterType === 'all') return categories;
+    return categories.filter(c => c.type === filterType);
+  }, [categories, filterType]);
 
   return (
     <div className="space-y-6 animate-fade-in relative">
@@ -283,8 +316,72 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Buscador */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          {/* 1. Tipo */}
+          <div className="lg:col-span-1">
+            <select
+              value={filterType}
+              onChange={(e) => {
+                setFilterType(e.target.value as any);
+                setFilterCategory('all');
+                setFilterSubcategory('all');
+              }}
+              className="w-full px-3 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+            >
+              <option value="all">Todos los Tipos</option>
+              <option value={TransactionType.INCOME}>Ingresos</option>
+              <option value={TransactionType.EXPENSE}>Egresos</option>
+              <option value={TransactionType.TRANSFER}>Transferencias</option>
+            </select>
+          </div>
+
+          {/* 2. Categoría */}
+          <div className="lg:col-span-1">
+            <select
+              value={filterCategory}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setFilterSubcategory('all'); // Reset subcategory when category changes
+              }}
+              className="w-full px-3 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+            >
+              <option value="all">Todas las Categorías</option>
+              {filteredCategoriesForFilter.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Subcategoría */}
+          <div className="lg:col-span-1">
+            <select
+              value={filterSubcategory}
+              onChange={(e) => setFilterSubcategory(e.target.value)}
+              disabled={filterCategory === 'all'}
+              className="w-full px-3 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="all">Todas las Subcategorías</option>
+              {categories.find(c => c.name === filterCategory)?.subcategories?.map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. Cuenta (Nuevo) */}
+          <div className="lg:col-span-1">
+            <select
+              value={filterAccountId}
+              onChange={(e) => setFilterAccountId(e.target.value)}
+              className="w-full px-3 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+            >
+              <option value="all">Todas las Cuentas</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>{acc.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 5. Buscador */}
           <div className="lg:col-span-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
             <input
@@ -296,54 +393,69 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
             />
           </div>
 
-          {/* Fechas */}
-          <div className="flex items-center gap-2 lg:col-span-2">
+          {/* 6. Fechas */}
+          <div className="lg:col-span-1 flex items-center gap-2">
             <div className="relative w-full">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><Calendar size={14} /></span>
+              {/* <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500"><Calendar size={12} /></span> */}
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full pl-8 pr-2 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                className="w-full px-2 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-xs text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
               />
             </div>
             <span className="text-gray-500">-</span>
             <div className="relative w-full">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><Calendar size={14} /></span>
+              {/* <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500"><Calendar size={12} /></span> */}
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full pl-8 pr-2 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                className="w-full px-2 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-xs text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
               />
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Selectores */}
-          <div className="lg:col-span-1">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
-              className="w-full px-3 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
-            >
-              <option value="all">Todos los Tipos</option>
-              <option value={TransactionType.INCOME}>Ingresos</option>
-              <option value={TransactionType.EXPENSE}>Egresos</option>
-              <option value={TransactionType.TRANSFER}>Transferencias</option>
-            </select>
+      {/* --- Resumen Dinámico --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Balance */}
+        <div className="bg-[#151E2B] p-4 rounded-2xl border border-[#1E293B] flex items-center justify-between shadow-lg">
+          <div>
+            <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Balance Filtrado</p>
+            <p className={`text-xl font-bold ${totalBalance >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+              {totalBalance >= 0 ? '+' : ''}${totalBalance.toLocaleString()}
+            </p>
           </div>
+          <div className={`p-2 rounded-xl ${totalBalance >= 0 ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
+            {totalBalance >= 0 ? <ArrowUpCircle size={24} /> : <ArrowDownCircle size={24} />}
+          </div>
+        </div>
 
-          <div className="lg:col-span-1">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-[#0B131F] border border-[#1E293B] rounded-xl text-sm text-white focus:ring-1 focus:ring-[#19A8C7] outline-none"
-            >
-              <option value="all">Todas las Categorías</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-            </select>
+        {/* Ingresos */}
+        <div className="bg-[#151E2B] p-4 rounded-2xl border border-[#1E293B] flex items-center justify-between shadow-lg">
+          <div>
+            <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Ingresos</p>
+            <p className="text-xl font-bold text-[#10b981]">
+              +${totalIncome.toLocaleString()}
+            </p>
+          </div>
+          <div className="p-2 rounded-xl bg-[#10b981]/10 text-[#10b981]">
+            <ArrowUpCircle size={24} />
+          </div>
+        </div>
+
+        {/* Egresos */}
+        <div className="bg-[#151E2B] p-4 rounded-2xl border border-[#1E293B] flex items-center justify-between shadow-lg">
+          <div>
+            <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Egresos</p>
+            <p className="text-xl font-bold text-[#ef4444]">
+              -${totalExpense.toLocaleString()}
+            </p>
+          </div>
+          <div className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]">
+            <ArrowDownCircle size={24} />
           </div>
         </div>
       </div>

@@ -52,9 +52,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       // Ajuste de fin de día
       e.setHours(23, 59, 59, 999);
 
+      // NEW: Get IDs of credit accounts to filter them out
+      const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
+
       return transactions.reduce((acc, t) => {
         const d = new Date(t.date);
-        if (t.type === TransactionType.INCOME && d >= s && d <= e) {
+
+        // Exclude credit sales from Volume as per user request
+        if (t.type === TransactionType.INCOME &&
+          d >= s && d <= e &&
+          !creditAccountIds.includes(t.accountId)) {
           return acc + (t.quantity || 0);
         }
         return acc;
@@ -97,10 +104,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     }
 
     const getBreakdown = (s: Date, e: Date) => {
+      const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
       const breakdown: Record<string, number> = {};
+
       transactions.forEach(t => {
         const d = new Date(t.date);
-        if (t.type === TransactionType.INCOME && d >= s && d <= e && t.quantity) {
+        if (t.type === TransactionType.INCOME &&
+          d >= s && d <= e &&
+          t.quantity &&
+          !creditAccountIds.includes(t.accountId)) {
           const key = t.subcategory || t.category || 'Otros';
           breakdown[key] = (breakdown[key] || 0) + (t.quantity || 0);
         }
@@ -164,10 +176,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     let expense = 0;
     const now = new Date();
 
-    // Filtrar transacciones del mes actual para los KPIs generales
+    // NEW: Get IDs of credit accounts to filter them out
+    const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
+
+    // Filter transactions del mes actual para los KPIs generales
     const currentTx = transactions.filter(t => {
       const d = new Date(t.date);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      // EXCLUDE CREDIT TRANSACTIONS from realized income/expense
+      return d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear() &&
+        !creditAccountIds.includes(t.accountId);
     });
 
     currentTx.forEach(t => {
@@ -175,10 +193,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       if (t.type === TransactionType.EXPENSE) expense += t.amount;
     });
 
-    const totalBalance = balances.reduce((acc, curr) => acc + curr.balance, 0);
+    // Filtra el balance total para excluir fondos "virtuales" en cuentas por cobrar
+    const totalBalance = balances
+      .filter(b => !creditAccountIds.includes(b.accountId))
+      .reduce((acc, curr) => acc + curr.balance, 0);
 
     return { income, expense, totalBalance };
-  }, [transactions, balances]);
+  }, [transactions, balances, accounts]);
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -194,12 +215,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       // Ajuste para incluir todo el día final
       end.setHours(23, 59, 59, 999);
 
+      const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
+
       return transactions
         .filter(t => {
           const d = new Date(t.date);
           // Convertir a fecha local para comparación justa si se guardó en UTC pero queremos rangos locales
           // O mejor, usar comparaciones de timestamp que son agnósticas
-          return t.type === TransactionType.INCOME && d >= start && d <= end;
+          return t.type === TransactionType.INCOME &&
+            d >= start && d <= end &&
+            !creditAccountIds.includes(t.accountId); // Exclude credits
         })
         .reduce((sum, t) => sum + t.amount, 0);
     };
@@ -274,7 +299,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       data[key] = { name: months[d.getMonth()], Ingresos: 0, Egresos: 0 };
     }
 
+    const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
+
     transactions.forEach(t => {
+      // Skip credit transactions for cash flow evolution
+      if (creditAccountIds.includes(t.accountId)) return;
+
       const date = new Date(t.date);
       const key = `${date.getFullYear()}-${date.getMonth()}`;
       if (data[key]) {
@@ -290,7 +320,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
   const categoryData = useMemo(() => {
     const data: Record<string, number> = {};
     let totalExp = 0;
+    const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
     transactions.forEach(t => {
+      // Exclude credit accounts if expenses are paid via credit (not common but safe to filter)
+      if (creditAccountIds.includes(t.accountId)) return;
+
       if (t.type === TransactionType.EXPENSE) {
         data[t.category] = (data[t.category] || 0) + t.amount;
         totalExp += t.amount;
