@@ -69,37 +69,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     };
 
     if (volumePeriod === 'custom' && customStart && customEnd) {
-      start = new Date(customStart);
-      end = new Date(customEnd);
-      end.setHours(23, 59, 59, 999);
-    } else if (volumePeriod === 'month') {
-      // Usar mes seleccionado en vez de actual
-      start = new Date(volumeYear, volumeMonth, 1);
-      end = new Date(volumeYear, volumeMonth + 1, 0);
+      // Parse custom dates manually to ensure local midnight consistency or just use strings
+      // But standardizing on converting everything to UTC timestamps for range check is safer
+      // Assuming customStart is YYYY-MM-DD
+      const [sy, sm, sd] = customStart.split('-').map(Number);
+      const [ey, em, ed] = customEnd.split('-').map(Number);
 
-      startPrev = new Date(volumeYear, volumeMonth - 1, 1);
-      endPrev = new Date(volumeYear, volumeMonth, 0);
+      start = new Date(Date.UTC(sy, sm - 1, sd));
+      end = new Date(Date.UTC(ey, em - 1, ed, 23, 59, 59, 999));
+
+    } else if (volumePeriod === 'month') {
+      // Use volumeYear/volumeMonth (from state)
+      start = new Date(Date.UTC(volumeYear, volumeMonth, 1));
+      end = new Date(Date.UTC(volumeYear, volumeMonth + 1, 0, 23, 59, 59, 999));
+
+      startPrev = new Date(Date.UTC(volumeYear, volumeMonth - 1, 1));
+      endPrev = new Date(Date.UTC(volumeYear, volumeMonth, 0, 23, 59, 59, 999));
 
     } else if (volumePeriod === 'year') {
-      start = new Date(now.getFullYear(), 0, 1);
-      end = new Date(now.getFullYear(), 11, 31);
+      start = new Date(Date.UTC(now.getFullYear(), 0, 1));
+      end = new Date(Date.UTC(now.getFullYear(), 11, 31, 23, 59, 59, 999));
 
-      startPrev = new Date(now.getFullYear() - 1, 0, 1);
-      endPrev = new Date(now.getFullYear() - 1, 11, 31);
+      startPrev = new Date(Date.UTC(now.getFullYear() - 1, 0, 1));
+      endPrev = new Date(Date.UTC(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999));
+
     } else if (volumePeriod === 'fortnight') {
       const day = now.getDate();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+
       if (day <= 15) {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth(), 15);
+        start = new Date(Date.UTC(year, month, 1));
+        end = new Date(Date.UTC(year, month, 15, 23, 59, 59, 999));
 
-        startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 16);
-        endPrev = new Date(now.getFullYear(), now.getMonth(), 0);
+        startPrev = new Date(Date.UTC(year, month - 1, 16));
+        endPrev = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
       } else {
-        start = new Date(now.getFullYear(), now.getMonth(), 16);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        start = new Date(Date.UTC(year, month, 16));
+        end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
 
-        startPrev = new Date(now.getFullYear(), now.getMonth(), 1);
-        endPrev = new Date(now.getFullYear(), now.getMonth(), 15);
+        startPrev = new Date(Date.UTC(year, month, 1));
+        endPrev = new Date(Date.UTC(year, month, 15, 23, 59, 59, 999));
       }
     }
 
@@ -108,7 +118,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       const breakdown: Record<string, number> = {};
 
       transactions.forEach(t => {
+        // Parse date as UTC to avoid local offset shifting
+        // t.date is ISO string, usually YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ
+        // new Date(t.date) parses it correctly if ISO.
+        // If YYYY-MM-DD, it parses as UTC midnight. Perfect.
         const d = new Date(t.date);
+
         if (t.type === TransactionType.INCOME &&
           d >= s && d <= e &&
           t.quantity &&
@@ -205,6 +220,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // --- Lógica de Comparativa ---
+  // --- Lógica de Comparativa ---
   const comparisonData = useMemo(() => {
     const now = new Date();
     let currentAmount = 0;
@@ -212,16 +228,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     let previousLabel = '';
 
     const getIncomeForPeriod = (start: Date, end: Date) => {
-      // Ajuste para incluir todo el día final
-      end.setHours(23, 59, 59, 999);
-
       const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
 
       return transactions
         .filter(t => {
           const d = new Date(t.date);
-          // Convertir a fecha local para comparación justa si se guardó en UTC pero queremos rangos locales
-          // O mejor, usar comparaciones de timestamp que son agnósticas
           return t.type === TransactionType.INCOME &&
             d >= start && d <= end &&
             !creditAccountIds.includes(t.accountId); // Exclude credits
@@ -231,13 +242,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
 
     if (comparisonPeriod === 'month') {
       // Mes Seleccionado vs Mes Anterior
-      // Usar selectedMonth y selectedYear
-      const startCurrent = new Date(selectedYear, selectedMonth, 1);
-      const endCurrent = new Date(selectedYear, selectedMonth + 1, 0);
+      // Use selectedMonth/Year from state
+      const startCurrent = new Date(Date.UTC(selectedYear, selectedMonth, 1));
+      const endCurrent = new Date(Date.UTC(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999));
 
-      // Mes anterior (maneja cambio de año automáticamente)
-      const startPrev = new Date(selectedYear, selectedMonth - 1, 1);
-      const endPrev = new Date(selectedYear, selectedMonth, 0);
+      const startPrev = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
+      const endPrev = new Date(Date.UTC(selectedYear, selectedMonth, 0, 23, 59, 59, 999));
 
       currentAmount = getIncomeForPeriod(startCurrent, endCurrent);
       previousAmount = getIncomeForPeriod(startPrev, endPrev);
@@ -245,11 +255,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
 
     } else if (comparisonPeriod === 'year') {
       // Este Año vs Año Anterior
-      const startCurrent = new Date(now.getFullYear(), 0, 1);
-      const endCurrent = new Date(now.getFullYear(), 11, 31);
+      const startCurrent = new Date(Date.UTC(now.getFullYear(), 0, 1));
+      const endCurrent = new Date(Date.UTC(now.getFullYear(), 11, 31, 23, 59, 59, 999));
 
-      const startPrev = new Date(now.getFullYear() - 1, 0, 1);
-      const endPrev = new Date(now.getFullYear() - 1, 11, 31);
+      const startPrev = new Date(Date.UTC(now.getFullYear() - 1, 0, 1));
+      const endPrev = new Date(Date.UTC(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999));
 
       currentAmount = getIncomeForPeriod(startCurrent, endCurrent);
       previousAmount = getIncomeForPeriod(startPrev, endPrev);
@@ -258,22 +268,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     } else if (comparisonPeriod === 'fortnight') {
       // Esta Quincena vs Quincena Anterior
       const day = now.getDate();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+
       let startCurrent, endCurrent, startPrev, endPrev;
 
       if (day <= 15) {
         // Primera quincena actual vs Segunda quincena mes anterior
-        startCurrent = new Date(now.getFullYear(), now.getMonth(), 1);
-        endCurrent = new Date(now.getFullYear(), now.getMonth(), 15);
+        startCurrent = new Date(Date.UTC(year, month, 1));
+        endCurrent = new Date(Date.UTC(year, month, 15, 23, 59, 59, 999));
 
-        startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 16);
-        endPrev = new Date(now.getFullYear(), now.getMonth(), 0);
+        startPrev = new Date(Date.UTC(year, month - 1, 16));
+        endPrev = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
       } else {
         // Segunda quincena actual vs Primera quincena actual
-        startCurrent = new Date(now.getFullYear(), now.getMonth(), 16);
-        endCurrent = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        startCurrent = new Date(Date.UTC(year, month, 16));
+        endCurrent = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
 
-        startPrev = new Date(now.getFullYear(), now.getMonth(), 1);
-        endPrev = new Date(now.getFullYear(), now.getMonth(), 15);
+        startPrev = new Date(Date.UTC(year, month, 1));
+        endPrev = new Date(Date.UTC(year, month, 15, 23, 59, 59, 999));
       }
       currentAmount = getIncomeForPeriod(startCurrent, endCurrent);
       previousAmount = getIncomeForPeriod(startPrev, endPrev);
