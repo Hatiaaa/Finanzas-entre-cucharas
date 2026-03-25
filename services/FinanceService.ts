@@ -107,14 +107,24 @@ export const FinanceService = {
     if (error) throw error;
   },
 
-  // --- Transactions ---
   getTransactions: async (): Promise<Transaction[]> => {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .order('date', { ascending: false });
-    if (error) throw error;
-    return data.map(tx => ({
+    let allData: any[] = [];
+    let from = 0;
+    const step = 1000;
+    while(true) {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false })
+        .range(from, from + step - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < step) break;
+      from += step;
+    }
+    
+    return allData.map((tx: any) => ({
       id: tx.id,
       date: tx.date,
       type: tx.type as TransactionType,

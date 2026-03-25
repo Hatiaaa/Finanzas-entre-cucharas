@@ -14,7 +14,7 @@ import { RecipesView } from './components/RecipesView';
 import { DailyClosingView } from './components/DailyClosingView';
 import { SalesVolumeView } from './components/SalesVolumeView';
 import { CreditsView } from './components/CreditsView';
-import { TransactionType } from './types';
+import { TransactionType, AccountType } from './types';
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -230,13 +230,41 @@ function App() {
         ...originalTx,
         date: new Date().toISOString(),
         accountId: toAccountId,
-        description: `${originalTx.description} (Cobrado)`,
+        description: `${originalTx.description} (Cobrado - ${originalTx.client || 'Cliente'})`,
       });
 
       await refreshData();
-      setView('dashboard');
     } catch (error) {
       console.error("Error paying credit", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePayAllCredit = async (clientName: string, toAccountId: string) => {
+    setIsLoading(true);
+    try {
+      const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
+      const clientTxs = transactions.filter(t => 
+        creditAccountIds.includes(t.accountId) && 
+        t.type === TransactionType.INCOME &&
+        (t.client?.trim() || 'Cliente Sin Nombre') === clientName
+      );
+
+      if (clientTxs.length === 0) return;
+
+      await Promise.all(clientTxs.map(tx => {
+        return FinanceService.updateTransaction({
+          ...tx,
+          date: new Date().toISOString(),
+          accountId: toAccountId,
+          description: `${tx.description} (Cobrado - ${tx.client || 'Cliente Sin Nombre'})`
+        });
+      }));
+
+      await refreshData();
+    } catch (error) {
+      console.error("Error paying all credit", error);
     } finally {
       setIsLoading(false);
     }
@@ -308,6 +336,7 @@ function App() {
           accounts={accounts}
           onBack={() => setView('dashboard')}
           onPayCredit={handlePayCredit}
+          onPayAllCredit={handlePayAllCredit}
           onUpdateTransaction={handleUpdateTransaction}
           onDeleteTransaction={handleDeleteTransaction}
         />

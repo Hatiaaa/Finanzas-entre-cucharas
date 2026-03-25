@@ -7,13 +7,15 @@ interface CreditsViewProps {
     accounts: Account[];
     onBack: () => void;
     onPayCredit: (transactionId: string, toAccountId: string) => void;
+    onPayAllCredit: (clientName: string, toAccountId: string) => void;
     onUpdateTransaction: (transaction: Transaction) => void;
     onDeleteTransaction: (id: string) => void;
 }
 
-export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts, onBack, onPayCredit, onUpdateTransaction, onDeleteTransaction }) => {
+export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts, onBack, onPayCredit, onPayAllCredit, onUpdateTransaction, onDeleteTransaction }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+    const [selectedClientForPayAll, setSelectedClientForPayAll] = useState<string | null>(null);
     const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
     // Edit Form State
@@ -83,6 +85,13 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
         }
     };
 
+    const handlePayAll = () => {
+        if (selectedClientForPayAll && selectedPaymentAccount) {
+            onPayAllCredit(selectedClientForPayAll, selectedPaymentAccount);
+            setSelectedClientForPayAll(null);
+        }
+    };
+
     const cashAccounts = accounts.filter(a => a.type !== AccountType.CREDIT);
 
     return (
@@ -141,11 +150,20 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                         <p className="text-xs text-gray-500 font-mono">{txs.length} movimiento{txs.length !== 1 ? 's' : ''}</p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <span className="block text-xs text-gray-500 uppercase font-bold">Total</span>
-                                    <span className="text-[#FF8A00] text-xl font-bold">
-                                        ${clientTotal.toLocaleString()}
-                                    </span>
+                                <div className="text-right flex flex-col items-end gap-2">
+                                    <div className="text-right">
+                                        <span className="block text-xs text-gray-500 uppercase font-bold">Total</span>
+                                        <span className="text-[#FF8A00] text-xl font-bold">
+                                            ${clientTotal.toLocaleString()}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedClientForPayAll(clientName)}
+                                        className="text-[10px] font-bold uppercase tracking-wider bg-[#10b981]/20 text-[#10b981] hover:bg-[#10b981] hover:text-white px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                                    >
+                                        <CheckCircle size={12} />
+                                        Cobrar Todo
+                                    </button>
                                 </div>
                             </div>
 
@@ -242,6 +260,56 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                 </button>
                                 <button
                                     onClick={handlePay}
+                                    className="flex-1 py-3 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle size={18} />
+                                    Confirmar Cobro
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pay All Modal */}
+            {selectedClientForPayAll && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-[#151E2B] rounded-3xl border border-[#1E293B] shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-xl font-bold text-white mb-2">Cobrar deuda completa</h3>
+                        <p className="text-gray-400 text-sm mb-6">
+                            Estás cobrando <strong className="text-white">todo el saldo pendiente</strong> de <strong className="text-white">{selectedClientForPayAll}</strong>.
+                            <br />¿Dónde ingresa el dinero?
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 mb-2">Cuenta de Destino</label>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {cashAccounts.map(acc => (
+                                        <button
+                                            key={acc.id}
+                                            onClick={() => setSelectedPaymentAccount(acc.id)}
+                                            className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all ${selectedPaymentAccount === acc.id
+                                                ? 'bg-[#19A8C7]/10 border-[#19A8C7] text-white shadow-[0_0_15px_rgba(25,168,199,0.2)]'
+                                                : 'bg-[#0B131F] border-[#1E293B] text-gray-400 hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <span className="font-bold">{acc.name}</span>
+                                            {selectedPaymentAccount === acc.id && <CheckCircle size={20} className="text-[#19A8C7]" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <button
+                                    onClick={() => setSelectedClientForPayAll(null)}
+                                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handlePayAll}
                                     className="flex-1 py-3 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle size={18} />
