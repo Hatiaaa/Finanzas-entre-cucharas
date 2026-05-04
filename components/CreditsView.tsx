@@ -6,8 +6,8 @@ interface CreditsViewProps {
     transactions: Transaction[];
     accounts: Account[];
     onBack: () => void;
-    onPayCredit: (transactionId: string, toAccountId: string) => void;
-    onPayAllCredit: (clientName: string, toAccountId: string) => void;
+    onPayCredit: (transactionId: string, toAccountId: string, paidAmount: number) => void;
+    onPayAllCredit: (clientName: string, toAccountId: string, paidAmount: number) => void;
     onUpdateTransaction: (transaction: Transaction) => void;
     onDeleteTransaction: (id: string) => void;
 }
@@ -16,7 +16,11 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
     const [selectedClientForPayAll, setSelectedClientForPayAll] = useState<string | null>(null);
+    const [selectedClientTotal, setSelectedClientTotal] = useState(0);
     const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+
+    const [payAmount, setPayAmount] = useState('');
+    const [payAllAmount, setPayAllAmount] = useState('');
 
     // Edit Form State
     const [editClient, setEditClient] = useState('');
@@ -78,21 +82,39 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
 
     const totalPending = creditTransacitons.reduce((acc, t) => acc + t.amount, 0);
 
+    const openPayModal = (tx: Transaction) => {
+        setSelectedTx(tx);
+        setPayAmount(tx.amount.toFixed(2));
+        setSelectedPaymentAccount(accounts.find(a => a.type === AccountType.CASH)?.id || '');
+    };
+
+    const openPayAllModal = (clientName: string, clientTotal: number) => {
+        setSelectedClientForPayAll(clientName);
+        setSelectedClientTotal(clientTotal);
+        setPayAllAmount(clientTotal.toFixed(2));
+        setSelectedPaymentAccount(accounts.find(a => a.type === AccountType.CASH)?.id || '');
+    };
+
     const handlePay = () => {
-        if (selectedTx && selectedPaymentAccount) {
-            onPayCredit(selectedTx.id, selectedPaymentAccount);
+        const amount = parseFloat(payAmount);
+        if (selectedTx && selectedPaymentAccount && amount > 0) {
+            onPayCredit(selectedTx.id, selectedPaymentAccount, amount);
             setSelectedTx(null);
         }
     };
 
     const handlePayAll = () => {
-        if (selectedClientForPayAll && selectedPaymentAccount) {
-            onPayAllCredit(selectedClientForPayAll, selectedPaymentAccount);
+        const amount = parseFloat(payAllAmount);
+        if (selectedClientForPayAll && selectedPaymentAccount && amount > 0) {
+            onPayAllCredit(selectedClientForPayAll, selectedPaymentAccount, amount);
             setSelectedClientForPayAll(null);
         }
     };
 
     const cashAccounts = accounts.filter(a => a.type !== AccountType.CREDIT);
+
+    const payAmountNum = parseFloat(payAmount) || 0;
+    const payAllAmountNum = parseFloat(payAllAmount) || 0;
 
     return (
         <div className="p-1 md:p-6 space-y-6 animate-fade-in">
@@ -157,8 +179,8 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                             ${clientTotal.toLocaleString()}
                                         </span>
                                     </div>
-                                    <button 
-                                        onClick={() => setSelectedClientForPayAll(clientName)}
+                                    <button
+                                        onClick={() => openPayAllModal(clientName, clientTotal)}
                                         className="text-[10px] font-bold uppercase tracking-wider bg-[#10b981]/20 text-[#10b981] hover:bg-[#10b981] hover:text-white px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
                                     >
                                         <CheckCircle size={12} />
@@ -199,7 +221,7 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                                 <Trash2 size={14} />
                                             </button>
                                             <button
-                                                onClick={() => setSelectedTx(tx)}
+                                                onClick={() => openPayModal(tx)}
                                                 className="p-1.5 text-gray-400 hover:text-[#10b981] hover:bg-white/10 rounded-lg transition-colors"
                                                 title="Cobrar este movimiento"
                                             >
@@ -221,19 +243,58 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                 )}
             </div>
 
-            {/* Payment Modal */}
+            {/* Payment Modal (individual) */}
             {selectedTx && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-[#151E2B] rounded-3xl border border-[#1E293B] shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold text-white mb-2">Cobrar deuda</h3>
-                        <p className="text-gray-400 text-sm mb-6">
-                            Estás cobrando <strong className="text-white">${selectedTx.amount}</strong> a <strong className="text-white">{selectedTx.client || 'Cliente'}</strong>.
-                            <br />¿Dónde ingresa el dinero?
-                        </p>
-
-                        <div className="space-y-4">
+                        <div className="flex justify-between items-start mb-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-500 mb-2">Cuenta de Destino</label>
+                                <h3 className="text-xl font-bold text-white">Cobrar deuda</h3>
+                                <p className="text-gray-400 text-sm mt-1">
+                                    Cliente: <strong className="text-white">{selectedTx.client || 'Cliente'}</strong>
+                                </p>
+                            </div>
+                            <button onClick={() => setSelectedTx(null)} className="text-gray-400 hover:text-white">
+                                <X size={22} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-5">
+                            {/* Amount input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">
+                                    Monto a cobrar
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        max={selectedTx.amount}
+                                        value={payAmount}
+                                        onChange={e => setPayAmount(e.target.value)}
+                                        className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] pl-8 pr-4 py-3 text-white text-lg font-bold focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                    />
+                                </div>
+                                <div className="flex justify-between mt-2">
+                                    <span className="text-xs text-gray-500">
+                                        Deuda total: <strong className="text-[#FF8A00]">${selectedTx.amount.toFixed(2)}</strong>
+                                    </span>
+                                    {payAmountNum < selectedTx.amount && payAmountNum > 0 && (
+                                        <span className="text-xs text-yellow-400">
+                                            Restará: ${(selectedTx.amount - payAmountNum).toFixed(2)}
+                                        </span>
+                                    )}
+                                </div>
+                                {payAmountNum > selectedTx.amount && (
+                                    <p className="text-xs text-red-400 mt-1">El monto no puede superar la deuda total.</p>
+                                )}
+                            </div>
+
+                            {/* Destination account */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 mb-2">¿Dónde ingresa el dinero?</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {cashAccounts.map(acc => (
                                         <button
@@ -251,7 +312,7 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex gap-3">
+                            <div className="pt-2 flex gap-3">
                                 <button
                                     onClick={() => setSelectedTx(null)}
                                     className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
@@ -260,10 +321,11 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                 </button>
                                 <button
                                     onClick={handlePay}
-                                    className="flex-1 py-3 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-2"
+                                    disabled={payAmountNum <= 0 || payAmountNum > selectedTx.amount || !selectedPaymentAccount}
+                                    className="flex-1 py-3 bg-[#10b981] hover:bg-[#059669] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle size={18} />
-                                    Confirmar Cobro
+                                    {payAmountNum >= selectedTx.amount ? 'Cobrar Todo' : 'Cobro Parcial'}
                                 </button>
                             </div>
                         </div>
@@ -275,15 +337,54 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
             {selectedClientForPayAll && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-[#151E2B] rounded-3xl border border-[#1E293B] shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold text-white mb-2">Cobrar deuda completa</h3>
-                        <p className="text-gray-400 text-sm mb-6">
-                            Estás cobrando <strong className="text-white">todo el saldo pendiente</strong> de <strong className="text-white">{selectedClientForPayAll}</strong>.
-                            <br />¿Dónde ingresa el dinero?
-                        </p>
-
-                        <div className="space-y-4">
+                        <div className="flex justify-between items-start mb-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-500 mb-2">Cuenta de Destino</label>
+                                <h3 className="text-xl font-bold text-white">Cobrar deuda</h3>
+                                <p className="text-gray-400 text-sm mt-1">
+                                    Cliente: <strong className="text-white capitalize">{selectedClientForPayAll}</strong>
+                                </p>
+                            </div>
+                            <button onClick={() => setSelectedClientForPayAll(null)} className="text-gray-400 hover:text-white">
+                                <X size={22} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-5">
+                            {/* Amount input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">
+                                    Monto a cobrar
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        max={selectedClientTotal}
+                                        value={payAllAmount}
+                                        onChange={e => setPayAllAmount(e.target.value)}
+                                        className="w-full rounded-xl bg-[#0B131F] border border-[#1E293B] pl-8 pr-4 py-3 text-white text-lg font-bold focus:ring-1 focus:ring-[#19A8C7] outline-none"
+                                    />
+                                </div>
+                                <div className="flex justify-between mt-2">
+                                    <span className="text-xs text-gray-500">
+                                        Deuda total: <strong className="text-[#FF8A00]">${selectedClientTotal.toFixed(2)}</strong>
+                                    </span>
+                                    {payAllAmountNum < selectedClientTotal && payAllAmountNum > 0 && (
+                                        <span className="text-xs text-yellow-400">
+                                            Restará: ${(selectedClientTotal - payAllAmountNum).toFixed(2)}
+                                        </span>
+                                    )}
+                                </div>
+                                {payAllAmountNum > selectedClientTotal && (
+                                    <p className="text-xs text-red-400 mt-1">El monto no puede superar la deuda total.</p>
+                                )}
+                            </div>
+
+                            {/* Destination account */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 mb-2">¿Dónde ingresa el dinero?</label>
                                 <div className="grid grid-cols-1 gap-2">
                                     {cashAccounts.map(acc => (
                                         <button
@@ -301,7 +402,7 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                 </div>
                             </div>
 
-                            <div className="pt-4 flex gap-3">
+                            <div className="pt-2 flex gap-3">
                                 <button
                                     onClick={() => setSelectedClientForPayAll(null)}
                                     className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-colors"
@@ -310,10 +411,11 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
                                 </button>
                                 <button
                                     onClick={handlePayAll}
-                                    className="flex-1 py-3 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-2"
+                                    disabled={payAllAmountNum <= 0 || payAllAmountNum > selectedClientTotal || !selectedPaymentAccount}
+                                    className="flex-1 py-3 bg-[#10b981] hover:bg-[#059669] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors shadow-lg shadow-[#10b981]/20 flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle size={18} />
-                                    Confirmar Cobro
+                                    {payAllAmountNum >= selectedClientTotal ? 'Cobrar Todo' : 'Cobro Parcial'}
                                 </button>
                             </div>
                         </div>

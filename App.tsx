@@ -218,20 +218,40 @@ function App() {
     await refreshData();
   };
 
-  const handlePayCredit = async (transactionId: string, toAccountId: string) => {
+  const handlePayCredit = async (transactionId: string, toAccountId: string, paidAmount: number) => {
     setIsLoading(true);
     try {
       const originalTx = transactions.find(t => t.id === transactionId);
       if (!originalTx) return;
 
-      // Move transaction to the destination account (e.g. Cash)
-      // This "pays" the credit by converting it into a realized income in the cash account
-      await FinanceService.updateTransaction({
-        ...originalTx,
-        date: new Date().toISOString(),
-        accountId: toAccountId,
-        description: `${originalTx.description} (Cobrado - ${originalTx.client || 'Cliente'})`,
-      });
+      if (paidAmount >= originalTx.amount) {
+        // Full payment: move the transaction to the destination account
+        await FinanceService.updateTransaction({
+          ...originalTx,
+          date: new Date().toISOString(),
+          accountId: toAccountId,
+          description: `${originalTx.description} (Cobrado - ${originalTx.client || 'Cliente'})`,
+        });
+      } else {
+        // Partial payment: create new income in destination, reduce the original credit
+        await Promise.all([
+          FinanceService.addTransaction({
+            date: new Date().toISOString(),
+            type: TransactionType.INCOME,
+            category: originalTx.category,
+            subcategory: originalTx.subcategory,
+            accountId: toAccountId,
+            amount: paidAmount,
+            description: `${originalTx.description} (Cobro parcial - ${originalTx.client || 'Cliente'})`,
+            hasAttachment: false,
+            client: originalTx.client,
+          }),
+          FinanceService.updateTransaction({
+            ...originalTx,
+            amount: originalTx.amount - paidAmount,
+          }),
+        ]);
+      }
 
       await refreshData();
     } catch (error) {
@@ -241,26 +261,71 @@ function App() {
     }
   };
 
-  const handlePayAllCredit = async (clientName: string, toAccountId: string) => {
+  const handlePayAllCredit = async (clientName: string, toAccountId: string, paidAmount: number) => {
     setIsLoading(true);
     try {
       const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
-      const clientTxs = transactions.filter(t => 
-        creditAccountIds.includes(t.accountId) && 
+      const clientTxs = transactions.filter(t =>
+        creditAccountIds.includes(t.accountId) &&
         t.type === TransactionType.INCOME &&
         (t.client?.trim() || 'Cliente Sin Nombre') === clientName
-      );
+      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // oldest first
 
       if (clientTxs.length === 0) return;
 
-      await Promise.all(clientTxs.map(tx => {
-        return FinanceService.updateTransaction({
-          ...tx,
-          date: new Date().toISOString(),
-          accountId: toAccountId,
-          description: `${tx.description} (Cobrado - ${tx.client || 'Cliente Sin Nombre'})`
-        });
-      }));
+      const totalOwed = clientTxs.reduce((sum, tx) => sum + tx.amount, 0);
+
+      if (paidAmount >= totalOwed) {
+        // Full payment: move all transactions to destination
+        await Promise.all(clientTxs.map(tx =>
+          FinanceService.updateTransaction({
+            ...tx,
+            date: new Date().toISOString(),
+            accountId: toAccountId,
+            description: `${tx.description} (Cobrado - ${tx.client || 'Cliente Sin Nombre'})`,
+          })
+        ));
+      } else {
+        // Partial payment: distribute across transactions oldest-first
+        let remaining = paidAmount;
+        const ops: Promise<any>[] = [];
+
+        for (const tx of clientTxs) {
+          if (remaining <= 0) break;
+          if (remaining >= tx.amount) {
+            // Fully pay this transaction
+            ops.push(FinanceService.updateTransaction({
+              ...tx,
+              date: new Date().toISOString(),
+              accountId: toAccountId,
+              description: `${tx.description} (Cobrado - ${tx.client || 'Cliente Sin Nombre'})`,
+            }));
+            remaining -= tx.amount;
+          } else {
+            // Partially pay this transaction
+            ops.push(
+              FinanceService.addTransaction({
+                date: new Date().toISOString(),
+                type: TransactionType.INCOME,
+                category: tx.category,
+                subcategory: tx.subcategory,
+                accountId: toAccountId,
+                amount: remaining,
+                description: `${tx.description} (Cobro parcial - ${tx.client || 'Cliente Sin Nombre'})`,
+                hasAttachment: false,
+                client: tx.client,
+              }),
+              FinanceService.updateTransaction({
+                ...tx,
+                amount: tx.amount - remaining,
+              })
+            );
+            remaining = 0;
+          }
+        }
+
+        await Promise.all(ops);
+      }
 
       await refreshData();
     } catch (error) {
