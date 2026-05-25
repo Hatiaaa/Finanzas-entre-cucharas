@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# Local dev helpers (no van a producción)
+dev-api.mjs
+.claude/

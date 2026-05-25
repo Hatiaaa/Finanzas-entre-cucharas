@@ -61,7 +61,9 @@ export default async function handler(req: Request) {
       .map(block => (block as { type: 'text'; text: string }).text)
       .join('')
 
-    const parsed = JSON.parse(responseText)
+    // Eliminar posibles bloques markdown ```json ... ```
+    const clean = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+    const parsed = JSON.parse(clean)
 
     return new Response(JSON.stringify(parsed), {
       status: 200,
