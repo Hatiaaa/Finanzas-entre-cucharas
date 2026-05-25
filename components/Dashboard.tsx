@@ -179,8 +179,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       .filter(t => {
         const d = new Date(t.date);
         return t.type === TransactionType.EXPENSE &&
-          d.getMonth() === expenseMonth &&
-          d.getFullYear() === expenseYear;
+          d.getUTCMonth() === expenseMonth &&
+          d.getUTCFullYear() === expenseYear;
       })
       .reduce((sum, t) => sum + t.amount, 0);
   }, [transactions, expenseMonth, expenseYear]);
@@ -190,6 +190,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     let income = 0;
     let expense = 0;
     const now = new Date();
+    // Usar UTC para ser consistente con cómo se guardan las fechas en Supabase
+    const nowMonth = now.getUTCMonth();
+    const nowYear = now.getUTCFullYear();
 
     // NEW: Get IDs of credit accounts to filter them out
     const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
@@ -198,8 +201,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
     const currentTx = transactions.filter(t => {
       const d = new Date(t.date);
       // EXCLUDE CREDIT TRANSACTIONS from realized income/expense
-      return d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear() &&
+      return d.getUTCMonth() === nowMonth &&
+        d.getUTCFullYear() === nowYear &&
         !creditAccountIds.includes(t.accountId);
     });
 
@@ -307,9 +310,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
 
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      data[key] = { name: months[d.getMonth()], Ingresos: 0, Egresos: 0 };
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+      data[key] = { name: months[d.getUTCMonth()], Ingresos: 0, Egresos: 0 };
     }
 
     const creditAccountIds = accounts.filter(a => a.type === AccountType.CREDIT).map(a => a.id);
@@ -319,7 +322,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
       if (creditAccountIds.includes(t.accountId)) return;
 
       const date = new Date(t.date);
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
       if (data[key]) {
         if (t.type === TransactionType.INCOME) data[key].Ingresos += t.amount;
         if (t.type === TransactionType.EXPENSE) data[key].Egresos += t.amount;
@@ -798,7 +801,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
         </div>
         <div className="space-y-3 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
           {accounts.map((acc) => {
-            const bal = balances.find(b => b.accountId === acc.id)?.balance || 0;
+            const bal = balances.find(b => b.accountId === acc.id)?.balance ?? 0;
+            const isNegative = bal < 0;
             return (
               <div key={acc.id} className="flex justify-between items-center bg-[#0B131F] p-4 rounded-2xl border border-[#1E293B] hover:border-[#19A8C7] transition-colors group">
                 <div className="flex flex-col">
@@ -806,7 +810,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, accounts, ba
                   <span className="text-white font-bold">{acc.name}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[#19A8C7] font-bold block">${bal.toLocaleString()}</span>
+                  <span className={`font-bold block ${isNegative ? 'text-[#ef4444]' : 'text-[#19A8C7]'}`}>
+                    {isNegative ? '-' : ''}${Math.abs(bal).toLocaleString()}
+                  </span>
                 </div>
               </div>
             );

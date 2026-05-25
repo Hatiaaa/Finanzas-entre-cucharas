@@ -308,19 +308,26 @@ export const FinanceService = {
   },
 
   calculateBalances: (accounts: Account[], transactions: Transaction[]): { accountId: string, balance: number }[] => {
-    return accounts.map(acc => {
-      let balance = acc.initialBalance;
-      transactions.forEach(tx => {
-        if (tx.accountId === acc.id) {
-          if (tx.type === TransactionType.INCOME) balance += tx.amount;
-          if (tx.type === TransactionType.EXPENSE) balance -= tx.amount;
-          if (tx.type === TransactionType.TRANSFER) balance -= tx.amount;
-        }
-        if (tx.toAccountId === acc.id && tx.type === TransactionType.TRANSFER) {
-          balance += tx.amount;
-        }
-      });
-      return { accountId: acc.id, balance };
-    });
+    const balances = new Map<string, number>();
+    for (const acc of accounts) {
+      const initial = isFinite(acc.initialBalance) ? acc.initialBalance : 0;
+      balances.set(acc.id, initial);
+    }
+
+    for (const tx of transactions) {
+      const amount = Number(tx.amount);
+      if (!isFinite(amount)) continue; // Skip corrupted amounts
+      if (balances.has(tx.accountId)) {
+        const current = balances.get(tx.accountId)!;
+        if (tx.type === TransactionType.INCOME) balances.set(tx.accountId, current + amount);
+        else if (tx.type === TransactionType.EXPENSE) balances.set(tx.accountId, current - amount);
+        else if (tx.type === TransactionType.TRANSFER) balances.set(tx.accountId, current - amount);
+      }
+      if (tx.type === TransactionType.TRANSFER && tx.toAccountId && balances.has(tx.toAccountId)) {
+        balances.set(tx.toAccountId, balances.get(tx.toAccountId)! + amount);
+      }
+    }
+
+    return accounts.map(acc => ({ accountId: acc.id, balance: balances.get(acc.id) ?? 0 }));
   }
 };

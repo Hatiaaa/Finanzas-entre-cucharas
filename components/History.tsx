@@ -51,16 +51,23 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
     e.preventDefault();
     if (!editingTx) return;
 
+    const numericAmount = parseFloat(editAmount);
+    if (!isFinite(numericAmount) || numericAmount <= 0) {
+      alert("El monto debe ser un número mayor a 0.");
+      return;
+    }
+
     const selectedCat = categories.find(c => c.id === editCategoryId);
+    const normalizedDate = new Date(editDate + 'T12:00:00').toISOString();
 
     const updatedTransaction: Transaction = {
       ...editingTx,
-      date: editDate,
+      date: normalizedDate,
       type: editType,
       accountId: editAccountId,
       category: selectedCat?.name || 'General',
       subcategory: editSubcategory || undefined,
-      amount: parseFloat(editAmount),
+      amount: numericAmount,
       description: editDescription
     };
 
@@ -77,14 +84,16 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
       if (creditAccountIds.includes(t.accountId)) return false;
 
       const tDate = new Date(t.date);
-      const start = startDate ? new Date(startDate) : null;
-      const end = endDate ? new Date(endDate) : null;
+      const start = startDate ? new Date(startDate + 'T00:00:00') : null;
+      const end = endDate ? new Date(endDate + 'T23:59:59.999') : null;
 
       // Filtro de Texto (Descripción o Cuenta)
-      const accountName = accounts.find(a => a.id === t.accountId)?.name.toLowerCase() || '';
+      const originName = accounts.find(a => a.id === t.accountId)?.name.toLowerCase() || '';
+      const destName = t.toAccountId ? accounts.find(a => a.id === t.toAccountId)?.name.toLowerCase() || '' : '';
       const matchesText =
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        accountName.includes(searchTerm.toLowerCase());
+        originName.includes(searchTerm.toLowerCase()) ||
+        destName.includes(searchTerm.toLowerCase());
 
       // Filtro de Tipo
       const matchesType = filterType === 'all' || t.type === filterType;
@@ -95,8 +104,11 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
       // Filtro de Subcategoría
       const matchesSubcategory = filterSubcategory === 'all' || t.subcategory === filterSubcategory;
 
-      // Filtro de Cuenta
-      const matchesAccount = filterAccountId === 'all' || t.accountId === filterAccountId;
+      // Filtro de Cuenta: para transferencias, incluir ambos lados (origen Y destino)
+      const matchesAccount =
+        filterAccountId === 'all' ||
+        t.accountId === filterAccountId ||
+        (t.type === TransactionType.TRANSFER && t.toAccountId === filterAccountId);
 
       // Filtro de Fechas
       let matchesDate = true;
@@ -115,6 +127,11 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
     filteredData.forEach(t => {
       if (t.type === TransactionType.INCOME) income += t.amount;
       if (t.type === TransactionType.EXPENSE) expense += t.amount;
+      // Para transferencias, contar como ingreso si llega a la cuenta filtrada, egreso si sale
+      if (t.type === TransactionType.TRANSFER && filterAccountId !== 'all') {
+        if (t.toAccountId === filterAccountId) income += t.amount;
+        else expense += t.amount;
+      }
     });
 
     return {
@@ -491,6 +508,25 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
               {filteredData.length > 0 ? (
                 filteredData.map((t) => {
                   const account = accounts.find(a => a.id === t.accountId);
+                  const toAccount = t.toAccountId ? accounts.find(a => a.id === t.toAccountId) : null;
+
+                  let accountLabel: string;
+                  if (t.type === TransactionType.TRANSFER) {
+                    if (filterAccountId !== 'all') {
+                      // Show direction relative to the filtered account
+                      if (t.toAccountId === filterAccountId) {
+                        accountLabel = `← ${account?.name || '?'}`;
+                      } else {
+                        accountLabel = `→ ${toAccount?.name || '?'}`;
+                      }
+                    } else {
+                      accountLabel = toAccount
+                        ? `${account?.name || '?'} → ${toAccount.name}`
+                        : (account?.name || 'Desconocida');
+                    }
+                  } else {
+                    accountLabel = account?.name || 'Desconocida';
+                  }
                   return (
                     <tr key={t.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-6 py-4 text-sm text-gray-300 whitespace-nowrap">
@@ -515,8 +551,14 @@ export const History: React.FC<HistoryProps> = ({ transactions, accounts, catego
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-400">
-                        {account?.name || 'Desconocida'}
+                      <td className="px-6 py-4 text-sm">
+                        <span className={
+                          t.type === TransactionType.TRANSFER
+                            ? 'text-[#FF8A00] font-medium'
+                            : 'text-gray-400'
+                        }>
+                          {accountLabel}
+                        </span>
                       </td>
                       <td className={`px-6 py-4 text-sm font-bold text-right whitespace-nowrap ${t.type === TransactionType.INCOME ? 'text-[#10b981]' :
                         t.type === TransactionType.EXPENSE ? 'text-[#ef4444]' : 'text-[#FF8A00]'

@@ -14,7 +14,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
   // Form States
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<TransactionType>(TransactionType.INCOME);
-  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  // Default to first non-credit account to avoid accidental expense on credit accounts
+  const [accountId, setAccountId] = useState(
+    (accounts.find(a => a.type !== AccountType.CREDIT) || accounts[0])?.id || ''
+  );
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
   const [categoryId, setCategoryId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState(''); // Stores the name of the subcategory
@@ -25,27 +28,61 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
   const [file, setFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Accounts available depending on type:
+  // - EXPENSE: only CASH and BANK (never credit accounts)
+  // - INCOME: all accounts (credit sales are valid)
+  const availableAccounts = type === TransactionType.EXPENSE
+    ? accounts.filter(a => a.type !== AccountType.CREDIT)
+    : accounts;
+
   // Reset category selection when type changes
+  // Also reset accountId if current account is credit and type switched to expense
   useEffect(() => {
     setCategoryId('');
     setSubcategoryId('');
+    if (type === TransactionType.EXPENSE) {
+      const currentAccount = accounts.find(a => a.id === accountId);
+      if (currentAccount?.type === AccountType.CREDIT) {
+        const firstNonCredit = accounts.find(a => a.type !== AccountType.CREDIT);
+        if (firstNonCredit) setAccountId(firstNonCredit.id);
+      }
+    }
   }, [type]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const numericAmount = parseFloat(amount);
+    if (!isFinite(numericAmount) || numericAmount <= 0) {
+      alert("El monto debe ser un número mayor a 0.");
+      return;
+    }
+
+    let parsedQuantity: number | undefined = undefined;
+    if (quantity) {
+      const q = parseInt(quantity, 10);
+      if (!isFinite(q) || q <= 0) {
+        alert("La cantidad debe ser un número entero mayor a 0.");
+        return;
+      }
+      parsedQuantity = q;
+    }
+
+    // Normalizar fecha a mediodía local para evitar desplazamientos de timezone
+    const normalizedDate = new Date(date + 'T12:00:00').toISOString();
+
     if (mode === 'standard') {
       const selectedCat = categories.find(c => c.id === categoryId);
       onAddTransaction({
-        date,
+        date: normalizedDate,
         type,
         accountId,
         category: selectedCat?.name || 'General',
         subcategory: subcategoryId || undefined,
-        amount: parseFloat(amount),
+        amount: numericAmount,
         description,
         hasAttachment: !!file,
-        quantity: quantity ? parseInt(quantity) : undefined,
+        quantity: parsedQuantity,
         client: client || undefined
       });
     } else {
@@ -54,12 +91,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
         return;
       }
       onAddTransaction({
-        date,
+        date: normalizedDate,
         type: TransactionType.TRANSFER,
         accountId,
         toAccountId,
         category: 'Transferencia',
-        amount: parseFloat(amount),
+        amount: numericAmount,
         description,
         hasAttachment: !!file
       });
@@ -174,7 +211,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, cate
                   onChange={(e) => setAccountId(e.target.value)}
                   className="w-full rounded-xl bg-[#13131a] border border-gray-700 text-white p-3 focus:ring-1 focus:ring-[#6c5dd3] focus:border-[#6c5dd3] outline-none"
                 >
-                  {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                  {availableAccounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                 </select>
               </div>
 
