@@ -41,6 +41,10 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing }: DailyC
     actualizarProducto,
     actualizarGasto,
     actualizarConteoFisico,
+    eliminarProducto,
+    eliminarGasto,
+    limpiarProductos,
+    limpiarGastos,
     guardarCierre,
     resetear
   } = useCuadreCaja(accountIdEfectivo, accountIdBanco)
@@ -126,12 +130,16 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing }: DailyC
           <TablaCuadre
             productos={datos.productos}
             onActualizar={actualizarProducto}
+            onEliminar={eliminarProducto}
+            onLimpiarTodo={limpiarProductos}
           />
 
           {/* Tabla de gastos */}
           <TablaGastos
             gastos={datos.gastos}
             onActualizar={actualizarGasto}
+            onEliminar={eliminarGasto}
+            onLimpiarTodo={limpiarGastos}
           />
 
           {/* Arqueo + Estado: 2 columnas en desktop */}

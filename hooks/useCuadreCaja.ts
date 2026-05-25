@@ -231,6 +231,38 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string)
     }
   }, [datos, resumen, accountIdEfectivo, accountIdBanco, texto])
 
+  // Eliminar un producto por índice
+  const eliminarProducto = useCallback(
+    (index: number) => {
+      if (!datos) return
+      const nuevosProductos = datos.productos.filter((_, i) => i !== index)
+      recalcular({ ...datos, productos: nuevosProductos })
+    },
+    [datos, recalcular]
+  )
+
+  // Eliminar un gasto por índice
+  const eliminarGasto = useCallback(
+    (index: number) => {
+      if (!datos) return
+      const nuevosGastos = datos.gastos.filter((_, i) => i !== index)
+      recalcular({ ...datos, gastos: nuevosGastos })
+    },
+    [datos, recalcular]
+  )
+
+  // Limpiar todos los productos
+  const limpiarProductos = useCallback(() => {
+    if (!datos) return
+    recalcular({ ...datos, productos: [] })
+  }, [datos, recalcular])
+
+  // Limpiar todos los gastos
+  const limpiarGastos = useCallback(() => {
+    if (!datos) return
+    recalcular({ ...datos, gastos: [] })
+  }, [datos, recalcular])
+
   const resetear = useCallback(() => {
     setTexto('')
     setDatos(null)
@@ -246,6 +278,10 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string)
     actualizarProducto,
     actualizarGasto,
     actualizarConteoFisico,
+    eliminarProducto,
+    eliminarGasto,
+    limpiarProductos,
+    limpiarGastos,
     guardarCierre,
     resetear
   }

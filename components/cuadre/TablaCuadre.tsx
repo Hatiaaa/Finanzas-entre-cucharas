@@ -1,10 +1,13 @@
 import React from 'react'
 import { ProductoCuadre } from '../../types/cuadre'
 import { formatearMoneda } from '../../lib/calculos'
+import { Trash2, X } from 'lucide-react'
 
 interface Props {
   productos: ProductoCuadre[]
   onActualizar: (index: number, campo: keyof Omit<ProductoCuadre, 'total'>, valor: number | string) => void
+  onEliminar: (index: number) => void
+  onLimpiarTodo: () => void
 }
 
 type CampoNumerico = 'cantidad' | 'efectivo' | 'transferencia' | 'credito'
@@ -16,7 +19,7 @@ const COLUMNAS: { campo: CampoNumerico; label: string; color: string }[] = [
   { campo: 'credito', label: 'Crédito', color: 'text-[#FF8A00]' },
 ]
 
-export function TablaCuadre({ productos, onActualizar }: Props) {
+export function TablaCuadre({ productos, onActualizar, onEliminar, onLimpiarTodo }: Props) {
   const totales = productos.reduce(
     (acc, p) => ({
       cantidad: acc.cantidad + p.cantidad,
@@ -30,9 +33,21 @@ export function TablaCuadre({ productos, onActualizar }: Props) {
 
   return (
     <div className="bg-[#151E2B] border border-[#1E293B] rounded-3xl overflow-hidden">
-      <div className="px-6 py-4 border-b border-[#1E293B]">
-        <h3 className="text-white font-bold text-lg">Ventas del día</h3>
-        <p className="text-gray-500 text-xs mt-0.5">Todas las celdas son editables</p>
+      <div className="px-6 py-4 border-b border-[#1E293B] flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-white font-bold text-lg">Ventas del día</h3>
+          <p className="text-gray-500 text-xs mt-0.5">Todas las celdas son editables</p>
+        </div>
+        {productos.length > 0 && (
+          <button
+            onClick={onLimpiarTodo}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-400 hover:text-red-400 hover:bg-red-400/10 border border-[#1E293B] hover:border-red-400/30 transition-all"
+            title="Limpiar todas las filas"
+          >
+            <Trash2 size={13} />
+            Limpiar todo
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -46,11 +61,12 @@ export function TablaCuadre({ productos, onActualizar }: Props) {
                 </th>
               ))}
               <th className="px-4 py-3 text-right font-semibold text-white">Total</th>
+              <th className="px-2 py-3 w-8" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1E293B]">
             {productos.map((p, i) => (
-              <tr key={i} className="hover:bg-white/5 transition-colors">
+              <tr key={i} className="hover:bg-white/5 transition-colors group">
                 <td className="px-4 py-3">
                   <input
                     type="text"
@@ -75,6 +91,15 @@ export function TablaCuadre({ productos, onActualizar }: Props) {
                 <td className="px-4 py-3 text-right font-bold text-white">
                   {formatearMoneda(p.total)}
                 </td>
+                <td className="px-2 py-3 text-center">
+                  <button
+                    onClick={() => onEliminar(i)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                    title="Eliminar fila"
+                  >
+                    <X size={14} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -86,6 +111,7 @@ export function TablaCuadre({ productos, onActualizar }: Props) {
               <td className="px-3 py-3 text-right text-[#19A8C7]">{formatearMoneda(totales.transferencia)}</td>
               <td className="px-3 py-3 text-right text-[#FF8A00]">{formatearMoneda(totales.credito)}</td>
               <td className="px-4 py-3 text-right text-white">{formatearMoneda(totales.total)}</td>
+              <td />
             </tr>
           </tfoot>
         </table>
