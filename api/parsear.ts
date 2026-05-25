@@ -1,5 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 
+// Forzar Node.js runtime (necesario para @anthropic-ai/sdk)
+export const config = { runtime: 'nodejs' }
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SYSTEM_PROMPT = `Eres un asistente de contabilidad para un restaurante.
