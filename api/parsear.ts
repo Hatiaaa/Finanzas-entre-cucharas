@@ -1,9 +1,5 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Anthropic from '@anthropic-ai/sdk'
-
-// Forzar Node.js runtime (necesario para @anthropic-ai/sdk)
-export const config = { runtime: 'nodejs' }
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SYSTEM_PROMPT = `Eres un asistente de contabilidad para un restaurante.
 Tu única tarea es extraer datos de cierres de caja desde texto libre en español.
@@ -40,17 +36,24 @@ Reglas:
 - Todos los montos son números Float, no strings
 - Si no menciona conteo físico, usar 0`
 
-export default async function handler(req: Request) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY no configurada en el servidor' })
   }
 
   try {
-    const { texto } = await req.json()
+    const { texto } = req.body || {}
 
     if (!texto || typeof texto !== 'string') {
-      return new Response(JSON.stringify({ error: 'Texto requerido' }), { status: 400 })
+      return res.status(400).json({ error: 'Texto requerido' })
     }
+
+    const client = new Anthropic({ apiKey })
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5',
@@ -68,12 +71,12 @@ export default async function handler(req: Request) {
     const clean = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
     const parsed = JSON.parse(clean)
 
-    return new Response(JSON.stringify(parsed), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
-  } catch (error) {
+    return res.status(200).json(parsed)
+  } catch (error: any) {
     console.error('Error en /api/parsear:', error)
-    return new Response(JSON.stringify({ error: 'Error procesando el texto' }), { status: 500 })
+    return res.status(500).json({
+      error: 'Error procesando el texto',
+      detail: error?.message || String(error)
+    })
   }
 }
