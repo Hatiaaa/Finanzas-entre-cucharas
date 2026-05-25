@@ -7,9 +7,16 @@ export function calcularTotales(datos: DatosCuadre): ResumenCuadre {
   const totalVentas = totalEfectivo + totalTransferencia + totalCredito
   const totalGastos = datos.gastos.reduce((s, g) => s + g.valor, 0)
 
-  // Saldo teórico: solo considera efectivo (lo que debe haber físicamente en caja)
+  // Legacy
   const saldoTeorico = datos.baseInicial + totalEfectivo - totalGastos
-  const diferencia = datos.conteoFisico - saldoTeorico
+
+  // Nueva lógica: desde el conteo físico hacia atrás
+  // totalFisico = lo que hay en caja (efectivo) + lo que llegó por transferencia
+  const totalFisico = datos.conteoFisico + totalTransferencia
+  // ingresadoHoy = lo que entró al negocio hoy (descontando la base de ayer)
+  const ingresadoHoy = totalFisico - datos.baseInicial
+  // diferencia = lo que ingresó vs lo que se registró como venta
+  const diferencia = ingresadoHoy - totalVentas
 
   return {
     totalEfectivo,
@@ -18,6 +25,8 @@ export function calcularTotales(datos: DatosCuadre): ResumenCuadre {
     totalVentas,
     totalGastos,
     saldoTeorico,
+    totalFisico,
+    ingresadoHoy,
     diferencia
   }
 }

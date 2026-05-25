@@ -26,8 +26,10 @@ export interface ResumenCuadre {
   totalCredito: number
   totalVentas: number
   totalGastos: number
-  saldoTeorico: number
-  diferencia: number
+  saldoTeorico: number   // legacy, se mantiene para compatibilidad
+  totalFisico: number    // conteoFisico + totalTransferencia
+  ingresadoHoy: number   // totalFisico - baseInicial
+  diferencia: number     // ingresadoHoy - totalVentas
 }
 
 export interface CierrePayload {
