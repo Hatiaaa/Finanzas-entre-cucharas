@@ -407,6 +407,7 @@ function App() {
           closings={closings}
           onAddClosing={handleAddClosing}
           onDeleteClosing={handleDeleteClosing}
+          onGuardado={refreshData}
         />
       )}
 

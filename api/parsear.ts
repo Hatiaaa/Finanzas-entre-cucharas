@@ -31,7 +31,8 @@ Estructura exacta:
 Reglas:
 - Si un valor no se menciona, usar 0
 - "tieneFactura" es true solo si el usuario menciona factura o recibo explícitamente
-- Normalizar nombres de productos: "Almuerzo completo", "Segundos", "Sopas", "Desayuno", "Porción", "Bebidas"
+- Normalizar solo estos productos generales: "Almuerzo completo", "Segundos", "Sopas", "Porción", "Bebidas"
+- Para DESAYUNOS: conservar el nombre específico del plato tal como lo mencionó el usuario (ej: "Bolón de chicharrón", "Patacones con bistec", "Bolón mixto", "Americano", "Tortilla de verde", "Patacones con queso"). NO normalizar a "Desayuno"
 - Si menciona un producto no listado, incluirlo con el nombre que usó
 - Todos los montos son números Float, no strings
 - Si no menciona conteo físico, usar 0`

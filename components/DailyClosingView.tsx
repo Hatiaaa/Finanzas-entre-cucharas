@@ -14,9 +14,10 @@ interface DailyClosingViewProps {
   closings: DailyClosing[]
   onAddClosing: (closing: Omit<DailyClosing, 'id'>) => void
   onDeleteClosing: (id: string) => void
+  onGuardado?: () => void
 }
 
-export function DailyClosingView({ accounts, closings, onDeleteClosing }: DailyClosingViewProps) {
+export function DailyClosingView({ accounts, closings, onDeleteClosing, onGuardado }: DailyClosingViewProps) {
   // Selección de cuentas para el cuadre
   const cuentasEfectivo = useMemo(
     () => accounts.filter(a => a.type === AccountType.CASH),
@@ -47,7 +48,7 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing }: DailyC
     limpiarGastos,
     guardarCierre,
     resetear
-  } = useCuadreCaja(accountIdEfectivo, accountIdBanco)
+  } = useCuadreCaja(accountIdEfectivo, accountIdBanco, onGuardado)
 
   const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || 'Desconocida'
 

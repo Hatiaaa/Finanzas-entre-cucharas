@@ -9,7 +9,7 @@ import {
 } from '../types/cuadre'
 import { calcularTotales, enriquecerProductos } from '../lib/calculos'
 
-export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string) {
+export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string, onGuardado?: () => void) {
   const [texto, setTexto] = useState('')
   const [datos, setDatos] = useState<DatosCuadre | null>(null)
   const [resumen, setResumen] = useState<ResumenCuadre | null>(null)
@@ -225,6 +225,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string)
       if (closingError) throw new Error(`Error al guardar cierre: ${closingError.message}`)
 
       setEstado('guardado')
+      onGuardado?.()  // notificar a App.tsx para que recargue los datos
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al guardar en la base de datos')
       setEstado('error')
