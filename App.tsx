@@ -55,6 +55,7 @@ function App() {
       setBalances(FinanceService.calculateBalances(accs, txs));
     } catch (error) {
       console.error('Error refreshing data:', error);
+      alert('Error al sincronizar datos con el servidor. Los saldos pueden estar desactualizados. Verifique su conexión y recargue la página.');
     } finally {
       setIsLoading(false);
     }
@@ -124,6 +125,7 @@ function App() {
       await refreshData();
     } catch (error) {
       console.error("Error adding account:", error);
+      alert("Error al añadir la cuenta. Verifique su conexión.");
     } finally {
       setIsLoading(false);
     }
@@ -136,6 +138,7 @@ function App() {
       await refreshData();
     } catch (error) {
       console.error("Error updating account:", error);
+      alert("Error al actualizar la cuenta. Intente nuevamente.");
     } finally {
       setIsLoading(false);
     }
@@ -154,6 +157,7 @@ function App() {
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
           console.error("Error deleting account:", error);
+          alert("Error al eliminar la cuenta. Intente nuevamente.");
         } finally {
           setIsLoading(false);
         }
@@ -168,6 +172,7 @@ function App() {
       await refreshData();
     } catch (error) {
       console.error("Error adding category:", error);
+      alert("Error al añadir la categoría. Verifique su conexión.");
     } finally {
       setIsLoading(false);
     }
@@ -180,6 +185,7 @@ function App() {
       await refreshData();
     } catch (error) {
       console.error("Error updating category:", error);
+      alert("Error al actualizar la categoría. Intente nuevamente.");
     } finally {
       setIsLoading(false);
     }
@@ -198,6 +204,7 @@ function App() {
           setConfirmDialog(prev => ({ ...prev, isOpen: false }));
         } catch (error) {
           console.error("Error deleting category:", error);
+          alert("Error al eliminar la categoría. Intente nuevamente.");
         } finally {
           setIsLoading(false);
         }
@@ -206,16 +213,29 @@ function App() {
   };
 
   const handleAddClosing = async (data: any) => {
-    setIsLoading(true);
-    await FinanceService.addClosing(data);
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.addClosing(data);
+      await refreshData();
+    } catch (error) {
+      console.error("Error adding closing:", error);
+      alert("Error al guardar el cuadre de caja. Verifique su conexión.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteClosing = async (id: string) => {
-    setIsLoading(true);
-    await FinanceService.deleteClosing(id);
-    await refreshData();
-    await refreshData();
+    try {
+      setIsLoading(true);
+      await FinanceService.deleteClosing(id);
+      await refreshData();
+    } catch (error) {
+      console.error("Error deleting closing:", error);
+      alert("Error al eliminar el cuadre. Intente nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePayCredit = async (transactionId: string, toAccountId: string, paidAmount: number) => {
@@ -256,6 +276,7 @@ function App() {
       await refreshData();
     } catch (error) {
       console.error("Error paying credit", error);
+      alert("Error al registrar el cobro. Revise el historial: pudo guardarse parcialmente.");
     } finally {
       setIsLoading(false);
     }
@@ -330,6 +351,7 @@ function App() {
       await refreshData();
     } catch (error) {
       console.error("Error paying all credit", error);
+      alert("Error al registrar el cobro masivo. Revise el historial: pudo guardarse parcialmente.");
     } finally {
       setIsLoading(false);
     }

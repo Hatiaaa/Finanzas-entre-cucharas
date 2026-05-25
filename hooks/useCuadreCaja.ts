@@ -1,0 +1,252 @@
+import { useState, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
+import {
+  DatosCuadre,
+  ResumenCuadre,
+  EstadoCuadre,
+  ProductoCuadre,
+  GastoCuadre
+} from '../types/cuadre'
+import { calcularTotales, enriquecerProductos } from '../lib/calculos'
+
+export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string) {
+  const [texto, setTexto] = useState('')
+  const [datos, setDatos] = useState<DatosCuadre | null>(null)
+  const [resumen, setResumen] = useState<ResumenCuadre | null>(null)
+  const [estado, setEstado] = useState<EstadoCuadre>('idle')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Recalcula resumen cada vez que cambian los datos
+  const recalcular = useCallback((nuevosDatos: DatosCuadre) => {
+    const nuevoResumen = calcularTotales(nuevosDatos)
+    setDatos(nuevosDatos)
+    setResumen(nuevoResumen)
+  }, [])
+
+  // Llama a /api/parsear con el texto libre
+  const procesarTexto = useCallback(async () => {
+    if (!texto.trim()) return
+    setEstado('procesando')
+    setErrorMsg(null)
+
+    try {
+      const res = await fetch('/api/parsear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto })
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Error ${res.status}`)
+      }
+
+      const raw = await res.json()
+
+      // Enriquecer productos con el campo "total"
+      const nuevosDatos: DatosCuadre = {
+        baseInicial: Number(raw.baseInicial) || 0,
+        conteoFisico: Number(raw.conteoFisico) || 0,
+        productos: enriquecerProductos(
+          (raw.productos || []).map((p: any) => ({
+            nombre: p.nombre || '',
+            cantidad: Number(p.cantidad) || 0,
+            efectivo: Number(p.efectivo) || 0,
+            transferencia: Number(p.transferencia) || 0,
+            credito: Number(p.credito) || 0
+          }))
+        ),
+        gastos: (raw.gastos || []).map((g: any) => ({
+          descripcion: g.descripcion || '',
+          valor: Number(g.valor) || 0,
+          tieneFactura: Boolean(g.tieneFactura)
+        }))
+      }
+
+      recalcular(nuevosDatos)
+      setEstado('listo')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error desconocido al procesar el texto')
+      setEstado('error')
+    }
+  }, [texto, recalcular])
+
+  // Edición manual de una celda de producto
+  const actualizarProducto = useCallback(
+    (index: number, campo: keyof Omit<ProductoCuadre, 'total'>, valor: number | string) => {
+      if (!datos) return
+      const nuevosProductos = datos.productos.map((p, i) => {
+        if (i !== index) return p
+        const actualizado = { ...p, [campo]: typeof valor === 'string' ? Number(valor) || 0 : valor }
+        return { ...actualizado, total: actualizado.efectivo + actualizado.transferencia + actualizado.credito }
+      })
+      recalcular({ ...datos, productos: nuevosProductos })
+    },
+    [datos, recalcular]
+  )
+
+  // Edición manual de un gasto
+  const actualizarGasto = useCallback(
+    (index: number, campo: keyof GastoCuadre, valor: number | string | boolean) => {
+      if (!datos) return
+      const nuevosGastos = datos.gastos.map((g, i) => {
+        if (i !== index) return g
+        return { ...g, [campo]: valor }
+      })
+      recalcular({ ...datos, gastos: nuevosGastos })
+    },
+    [datos, recalcular]
+  )
+
+  // Actualizar conteo físico manualmente
+  const actualizarConteoFisico = useCallback(
+    (valor: number) => {
+      if (!datos) return
+      recalcular({ ...datos, conteoFisico: valor })
+    },
+    [datos, recalcular]
+  )
+
+  // Guardar cierre en Supabase
+  const guardarCierre = useCallback(async () => {
+    if (!datos || !resumen || !accountIdEfectivo || !accountIdBanco) return
+    setEstado('guardando')
+    setErrorMsg(null)
+
+    try {
+      const ahora = new Date().toISOString()
+      const fechaHoy = ahora.split('T')[0]
+
+      // Verificar si ya existe un cierre para hoy
+      const { data: existente } = await supabase
+        .from('daily_closings')
+        .select('id')
+        .gte('date', `${fechaHoy}T00:00:00`)
+        .lte('date', `${fechaHoy}T23:59:59`)
+        .maybeSingle()
+
+      if (existente) {
+        const confirmar = window.confirm(
+          'Ya existe un cierre para el día de hoy. ¿Deseas reemplazarlo?'
+        )
+        if (!confirmar) {
+          setEstado('listo')
+          return
+        }
+        // Eliminar el cierre anterior
+        await supabase.from('daily_closings').delete().eq('id', existente.id)
+      }
+
+      // --- 1. Preparar transacciones ---
+      const transacciones: any[] = []
+
+      for (const producto of datos.productos) {
+        // Ingreso en efectivo
+        if (producto.efectivo > 0) {
+          transacciones.push({
+            date: ahora,
+            type: 'Ingreso',
+            category: 'Ventas Alimentos',
+            subcategory: producto.nombre,
+            amount: producto.efectivo,
+            account_id: accountIdEfectivo,
+            quantity: producto.cantidad > 0 ? producto.cantidad : null,
+            description: `Cierre del día - ${producto.nombre}`,
+            has_attachment: false
+          })
+        }
+
+        // Ingreso por transferencia
+        if (producto.transferencia > 0) {
+          transacciones.push({
+            date: ahora,
+            type: 'Ingreso',
+            category: 'Ventas Alimentos',
+            subcategory: producto.nombre,
+            amount: producto.transferencia,
+            account_id: accountIdBanco,
+            quantity: null,
+            description: `Cierre del día - ${producto.nombre} (transferencia)`,
+            has_attachment: false
+          })
+        }
+
+        // Ingreso a crédito — sin account_id (el dinero aún no ha entrado)
+        if (producto.credito > 0) {
+          transacciones.push({
+            date: ahora,
+            type: 'Ingreso',
+            category: 'Ventas Alimentos',
+            subcategory: producto.nombre,
+            amount: producto.credito,
+            account_id: null,
+            quantity: null,
+            description: `Cierre del día - ${producto.nombre} (crédito pendiente)`,
+            has_attachment: false
+          })
+        }
+      }
+
+      // Egresos por gastos
+      for (const gasto of datos.gastos) {
+        if (gasto.valor > 0) {
+          transacciones.push({
+            date: ahora,
+            type: 'Egreso',
+            category: 'Gastos operativos',
+            subcategory: gasto.descripcion,
+            amount: gasto.valor,
+            account_id: accountIdEfectivo,
+            description: gasto.descripcion,
+            has_attachment: gasto.tieneFactura
+          })
+        }
+      }
+
+      // --- 2. Insertar transacciones en lote ---
+      if (transacciones.length > 0) {
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert(transacciones)
+
+        if (txError) throw new Error(`Error al guardar transacciones: ${txError.message}`)
+      }
+
+      // --- 3. Insertar daily_closing ---
+      const { error: closingError } = await supabase.from('daily_closings').insert([{
+        date: ahora,
+        account_id: accountIdEfectivo,
+        system_balance: resumen.saldoTeorico,
+        physical_amount: datos.conteoFisico,
+        difference: resumen.diferencia,
+        notes: texto
+      }])
+
+      if (closingError) throw new Error(`Error al guardar cierre: ${closingError.message}`)
+
+      setEstado('guardado')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error al guardar en la base de datos')
+      setEstado('error')
+    }
+  }, [datos, resumen, accountIdEfectivo, accountIdBanco, texto])
+
+  const resetear = useCallback(() => {
+    setTexto('')
+    setDatos(null)
+    setResumen(null)
+    setEstado('idle')
+    setErrorMsg(null)
+  }, [])
+
+  return {
+    texto, setTexto,
+    datos, resumen, estado, errorMsg,
+    procesarTexto,
+    actualizarProducto,
+    actualizarGasto,
+    actualizarConteoFisico,
+    guardarCierre,
+    resetear
+  }
+}

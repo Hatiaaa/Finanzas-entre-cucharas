@@ -43,12 +43,20 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
         e.preventDefault();
         if (!editingTx) return;
 
+        const numericAmount = parseFloat(editAmount);
+        if (!isFinite(numericAmount) || numericAmount <= 0) {
+            alert("El monto debe ser un número mayor a 0.");
+            return;
+        }
+
+        const normalizedDate = new Date(editDate + 'T12:00:00').toISOString();
+
         const updatedTx: Transaction = {
             ...editingTx,
             client: editClient,
-            amount: parseFloat(editAmount),
+            amount: numericAmount,
             description: editDescription,
-            date: editDate
+            date: normalizedDate
         };
 
         onUpdateTransaction(updatedTx);
@@ -97,7 +105,15 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
 
     const handlePay = () => {
         const amount = parseFloat(payAmount);
-        if (selectedTx && selectedPaymentAccount && amount > 0) {
+        if (!isFinite(amount) || amount <= 0) {
+            alert("Ingrese un monto mayor a 0.");
+            return;
+        }
+        if (!selectedPaymentAccount) {
+            alert("Seleccione una cuenta de destino.");
+            return;
+        }
+        if (selectedTx) {
             onPayCredit(selectedTx.id, selectedPaymentAccount, amount);
             setSelectedTx(null);
         }
@@ -105,7 +121,15 @@ export const CreditsView: React.FC<CreditsViewProps> = ({ transactions, accounts
 
     const handlePayAll = () => {
         const amount = parseFloat(payAllAmount);
-        if (selectedClientForPayAll && selectedPaymentAccount && amount > 0) {
+        if (!isFinite(amount) || amount <= 0) {
+            alert("Ingrese un monto mayor a 0.");
+            return;
+        }
+        if (!selectedPaymentAccount) {
+            alert("Seleccione una cuenta de destino.");
+            return;
+        }
+        if (selectedClientForPayAll) {
             onPayAllCredit(selectedClientForPayAll, selectedPaymentAccount, amount);
             setSelectedClientForPayAll(null);
         }
