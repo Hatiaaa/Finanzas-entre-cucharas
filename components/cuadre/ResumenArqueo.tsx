@@ -91,25 +91,33 @@ export function ResumenArqueo({ resumen, baseInicial, conteoFisico, onConteoFisi
         </div>
       </div>
 
-      {/* Total ventas registradas */}
-      <div className="bg-[#0B131F] rounded-2xl p-4 border border-[#1E293B] flex items-center justify-between">
-        <div>
-          <p className="text-gray-400 text-sm">Total ventas registradas</p>
-          <p className="text-gray-600 text-xs mt-0.5">
-            Efectivo + transf.
-            {resumen.totalCredito > 0 ? ` + créditos (${formatearMoneda(resumen.totalCredito)})` : ''}
-          </p>
+      {/* Total ventas - gastos */}
+      <div className="bg-[#0B131F] rounded-2xl p-4 border border-[#1E293B] space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-gray-400 text-sm">Total ventas registradas</p>
+            {resumen.totalCredito > 0 && (
+              <p className="text-gray-600 text-xs mt-0.5">Incluye créditos {formatearMoneda(resumen.totalCredito)}</p>
+            )}
+          </div>
+          <p className="text-[#10b981] font-bold">{formatearMoneda(resumen.totalVentas)}</p>
         </div>
-        <p className="text-[#10b981] font-black text-lg">{formatearMoneda(resumen.totalVentas)}</p>
-      </div>
 
-      {/* Gastos info */}
-      {resumen.totalGastos > 0 && (
-        <div className="flex items-center justify-between px-1">
-          <p className="text-gray-600 text-xs">Gastos del día</p>
-          <p className="text-[#ef4444] text-xs font-semibold">-{formatearMoneda(resumen.totalGastos)}</p>
+        {resumen.totalGastos > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-gray-400 text-sm">
+              <span className="text-[#ef4444] font-bold mr-1">(-)</span>
+              Gastos del día
+            </p>
+            <p className="text-[#ef4444] font-bold">{formatearMoneda(resumen.totalGastos)}</p>
+          </div>
+        )}
+
+        <div className="border-t border-[#1E293B] pt-3 flex items-center justify-between">
+          <p className="text-white text-sm font-bold uppercase tracking-wide">Ventas netas</p>
+          <p className="text-[#10b981] font-black text-lg">{formatearMoneda(resumen.totalVentas - resumen.totalGastos)}</p>
         </div>
-      )}
+      </div>
 
       {/* Diferencia */}
       <div className={`rounded-2xl p-4 border ${diferenciaBg}`}>

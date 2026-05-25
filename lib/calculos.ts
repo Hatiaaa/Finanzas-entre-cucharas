@@ -15,8 +15,8 @@ export function calcularTotales(datos: DatosCuadre): ResumenCuadre {
   const totalFisico = datos.conteoFisico + totalTransferencia
   // ingresadoHoy = lo que entró al negocio hoy (descontando la base de ayer)
   const ingresadoHoy = totalFisico - datos.baseInicial
-  // diferencia = lo que ingresó vs lo que se registró como venta
-  const diferencia = ingresadoHoy - totalVentas
+  // diferencia = lo que ingresó vs ventas netas (ventas - gastos)
+  const diferencia = ingresadoHoy - (totalVentas - totalGastos)
 
   return {
     totalEfectivo,
