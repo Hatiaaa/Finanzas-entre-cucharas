@@ -38,7 +38,8 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `Error ${res.status}`)
+        const detail = err.detail ? ` — ${err.detail}` : ''
+        throw new Error((err.error || `Error ${res.status}`) + detail)
       }
 
       const raw = await res.json()
