@@ -1,7 +1,7 @@
 import React from 'react'
 import { ProductoCuadre } from '../../types/cuadre'
 import { formatearMoneda } from '../../lib/calculos'
-import { Trash2, X } from 'lucide-react'
+import { Trash2, X, UserCheck } from 'lucide-react'
 
 interface Props {
   productos: ProductoCuadre[]
@@ -77,15 +77,27 @@ export function TablaCuadre({ productos, onActualizar, onEliminar, onLimpiarTodo
                 </td>
                 {COLUMNAS.map(c => (
                   <td key={c.campo} className="px-3 py-3 text-right">
-                    <input
-                      type="number"
-                      min="0"
-                      step={c.campo === 'cantidad' ? '1' : '0.01'}
-                      value={p[c.campo] === 0 ? '' : p[c.campo]}
-                      placeholder="0"
-                      onChange={e => onActualizar(i, c.campo, e.target.value)}
-                      className={`bg-transparent w-20 text-right outline-none focus:ring-0 ${c.color} placeholder-gray-700`}
-                    />
+                    {c.campo === 'credito' && p.creditos && p.creditos.length > 0 ? (
+                      <div className="flex flex-col items-end gap-0.5">
+                        {p.creditos.map((cr, ci) => (
+                          <div key={ci} className="flex items-center gap-1 text-xs">
+                            <UserCheck size={10} className="text-[#FF8A00]/60" />
+                            <span className="text-gray-400">{cr.cliente}</span>
+                            <span className="text-[#FF8A00] font-semibold">{formatearMoneda(cr.monto)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        min="0"
+                        step={c.campo === 'cantidad' ? '1' : '0.01'}
+                        value={p[c.campo] === 0 ? '' : p[c.campo]}
+                        placeholder="0"
+                        onChange={e => onActualizar(i, c.campo, e.target.value)}
+                        className={`bg-transparent w-20 text-right outline-none focus:ring-0 ${c.color} placeholder-gray-700`}
+                      />
+                    )}
                   </td>
                 ))}
                 <td className="px-4 py-3 text-right font-bold text-white">

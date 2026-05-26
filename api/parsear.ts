@@ -17,7 +17,9 @@ Estructura exacta:
       "cantidad": number,
       "efectivo": number,
       "transferencia": number,
-      "credito": number
+      "creditos": [
+        { "cliente": string, "cantidad": number, "monto": number }
+      ]
     }
   ],
   "gastos": [
@@ -30,7 +32,9 @@ Estructura exacta:
 }
 
 Reglas:
-- Si un valor no se menciona, usar 0
+- Si un valor no se menciona, usar 0 o array vacío según corresponda
+- Los créditos SIEMPRE deben tener nombre de cliente. Si no se menciona nombre, usar "Sin nombre"
+- Si hay varios clientes con crédito para el mismo producto, crear una entrada en "creditos" por cada uno
 - "tieneFactura" es true solo si el usuario menciona factura o recibo explícitamente
 - Todos los montos son números Float, no strings
 - Si no menciona conteo físico, usar 0

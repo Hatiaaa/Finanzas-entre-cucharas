@@ -9,7 +9,7 @@ import {
 } from '../types/cuadre'
 import { calcularTotales, enriquecerProductos } from '../lib/calculos'
 
-export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string, onGuardado?: () => void) {
+export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string, accountIdCredito: string, onGuardado?: () => void) {
   const [texto, setTexto] = useState('')
   const [datos, setDatos] = useState<DatosCuadre | null>(null)
   const [resumen, setResumen] = useState<ResumenCuadre | null>(null)
@@ -54,7 +54,11 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
             cantidad: Number(p.cantidad) || 0,
             efectivo: Number(p.efectivo) || 0,
             transferencia: Number(p.transferencia) || 0,
-            credito: Number(p.credito) || 0
+            creditos: (p.creditos || []).map((c: any) => ({
+              cliente: c.cliente || 'Sin nombre',
+              cantidad: Number(c.cantidad) || 0,
+              monto: Number(c.monto) || 0
+            }))
           }))
         ),
         gastos: (raw.gastos || []).map((g: any) => ({
@@ -78,10 +82,15 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
       if (!datos) return
       const nuevosProductos = datos.productos.map((p, i) => {
         if (i !== index) return p
-        // nombre y categoria son strings, los numéricos se convierten
         const esString = campo === 'nombre' || campo === 'categoria'
-        const actualizado = { ...p, [campo]: esString ? valor : (typeof valor === 'string' ? Number(valor) || 0 : valor) }
-        return { ...actualizado, total: actualizado.efectivo + actualizado.transferencia + actualizado.credito }
+        let actualizado = { ...p, [campo]: esString ? valor : (typeof valor === 'string' ? Number(valor) || 0 : valor) }
+        // Si el usuario edita 'credito' manualmente, sincronizar creditos array
+        if (campo === 'credito') {
+          const monto = typeof valor === 'string' ? Number(valor) || 0 : valor as number
+          actualizado = { ...actualizado, creditos: monto > 0 ? [{ cliente: 'Sin nombre', cantidad: 0, monto }] : [] }
+        }
+        const credito = actualizado.creditos.reduce((s, c) => s + c.monto, 0)
+        return { ...actualizado, credito, total: actualizado.efectivo + actualizado.transferencia + credito }
       })
       recalcular({ ...datos, productos: nuevosProductos })
     },
@@ -113,6 +122,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
   // Guardar cierre en Supabase
   const guardarCierre = useCallback(async () => {
     if (!datos || !resumen || !accountIdEfectivo || !accountIdBanco) return
+
     setEstado('guardando')
     setErrorMsg(null)
 
@@ -176,19 +186,22 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
           })
         }
 
-        // Ingreso a crédito — sin account_id (el dinero aún no ha entrado)
-        if (producto.credito > 0) {
-          transacciones.push({
-            date: ahora,
-            type: 'Ingreso',
-            category: cat,
-            subcategory: producto.nombre,
-            amount: producto.credito,
-            account_id: null,
-            quantity: null,
-            description: `Cierre del día - ${producto.nombre} (crédito pendiente)`,
-            has_attachment: false
-          })
+        // Ingresos a crédito — uno por cliente en la cuenta Cuentas por Cobrar
+        for (const cr of producto.creditos) {
+          if (cr.monto > 0) {
+            transacciones.push({
+              date: ahora,
+              type: 'Ingreso',
+              category: cat,
+              subcategory: producto.nombre,
+              amount: cr.monto,
+              account_id: accountIdCredito || null,
+              quantity: cr.cantidad > 0 ? cr.cantidad : null,
+              description: `Cierre del día - ${producto.nombre}`,
+              has_attachment: false,
+              client: cr.cliente
+            })
+          }
         }
       }
 

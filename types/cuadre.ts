@@ -1,10 +1,17 @@
+export interface CreditoCliente {
+  cliente: string
+  cantidad: number
+  monto: number
+}
+
 export interface ProductoCuadre {
   nombre: string
   categoria: string  // categoría del sistema: "Almuerzo", "Desayunos", "Bebidas", "Porciones", etc.
   cantidad: number
   efectivo: number
   transferencia: number
-  credito: number
+  credito: number          // total calculado: suma de creditos[].monto
+  creditos: CreditoCliente[] // desglose por cliente
   total: number // calculado: efectivo + transferencia + credito
 }
 

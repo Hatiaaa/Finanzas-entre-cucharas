@@ -27,6 +27,10 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing, onGuarda
     () => accounts.filter(a => a.type === AccountType.BANK),
     [accounts]
   )
+  const accountIdCredito = useMemo(
+    () => accounts.find(a => a.type === AccountType.CREDIT)?.id || '',
+    [accounts]
+  )
 
   const [accountIdEfectivo, setAccountIdEfectivo] = useState(
     () => cuentasEfectivo[0]?.id || ''
@@ -48,7 +52,7 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing, onGuarda
     limpiarGastos,
     guardarCierre,
     resetear
-  } = useCuadreCaja(accountIdEfectivo, accountIdBanco, onGuardado)
+  } = useCuadreCaja(accountIdEfectivo, accountIdBanco, accountIdCredito, onGuardado)
 
   const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || 'Desconocida'
 
