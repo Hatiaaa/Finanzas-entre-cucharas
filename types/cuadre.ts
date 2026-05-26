@@ -1,5 +1,6 @@
 export interface ProductoCuadre {
   nombre: string
+  categoria: string  // categoría del sistema: "Almuerzo", "Desayunos", "Bebidas", "Porciones", etc.
   cantidad: number
   efectivo: number
   transferencia: number

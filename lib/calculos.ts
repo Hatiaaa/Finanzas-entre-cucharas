@@ -36,6 +36,7 @@ export function enriquecerProductos(
 ): ProductoCuadre[] {
   return productos.map(p => ({
     ...p,
+    categoria: p.categoria || 'Ventas Alimentos',
     total: p.efectivo + p.transferencia + p.credito
   }))
 }

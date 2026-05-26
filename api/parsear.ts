@@ -13,6 +13,7 @@ Estructura exacta:
   "productos": [
     {
       "nombre": string,
+      "categoria": string,
       "cantidad": number,
       "efectivo": number,
       "transferencia": number,
@@ -31,11 +32,17 @@ Estructura exacta:
 Reglas:
 - Si un valor no se menciona, usar 0
 - "tieneFactura" es true solo si el usuario menciona factura o recibo explícitamente
-- Normalizar solo estos productos generales: "Almuerzo completo", "Segundos", "Sopas", "Porción", "Bebidas"
-- Para DESAYUNOS: conservar el nombre específico del plato tal como lo mencionó el usuario (ej: "Bolón de chicharrón", "Patacones con bistec", "Bolón mixto", "Americano", "Tortilla de verde", "Patacones con queso"). NO normalizar a "Desayuno"
-- Si menciona un producto no listado, incluirlo con el nombre que usó
 - Todos los montos son números Float, no strings
-- Si no menciona conteo físico, usar 0`
+- Si no menciona conteo físico, usar 0
+
+Reglas de nombre y categoría:
+- Almuerzos completos → nombre: "Almuerzo completo", categoria: "Almuerzo"
+- Segundos → nombre: "Segundo", categoria: "Almuerzo"
+- Sopas → nombre: "Sopa", categoria: "Almuerzo"
+- Platos de desayuno (bolón, patacones, tortilla, americano, etc.) → conservar el nombre específico del plato, categoria: "Desayunos"
+- Bebidas (café, jugo, té, etc.) → conservar nombre, categoria: "Bebidas"
+- Porciones (bistec, huevo, arroz, queso, etc.) → conservar nombre, categoria: "Porciones"
+- Cualquier otro plato → conservar nombre, categoria: "Platos a la Carta"`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

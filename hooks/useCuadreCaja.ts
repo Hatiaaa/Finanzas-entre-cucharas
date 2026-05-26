@@ -50,6 +50,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
         productos: enriquecerProductos(
           (raw.productos || []).map((p: any) => ({
             nombre: p.nombre || '',
+            categoria: p.categoria || 'Ventas Alimentos',
             cantidad: Number(p.cantidad) || 0,
             efectivo: Number(p.efectivo) || 0,
             transferencia: Number(p.transferencia) || 0,
@@ -77,7 +78,9 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
       if (!datos) return
       const nuevosProductos = datos.productos.map((p, i) => {
         if (i !== index) return p
-        const actualizado = { ...p, [campo]: typeof valor === 'string' ? Number(valor) || 0 : valor }
+        // nombre y categoria son strings, los numéricos se convierten
+        const esString = campo === 'nombre' || campo === 'categoria'
+        const actualizado = { ...p, [campo]: esString ? valor : (typeof valor === 'string' ? Number(valor) || 0 : valor) }
         return { ...actualizado, total: actualizado.efectivo + actualizado.transferencia + actualizado.credito }
       })
       recalcular({ ...datos, productos: nuevosProductos })
@@ -141,12 +144,14 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
       const transacciones: any[] = []
 
       for (const producto of datos.productos) {
+        const cat = producto.categoria || 'Ventas Alimentos'
+
         // Ingreso en efectivo
         if (producto.efectivo > 0) {
           transacciones.push({
             date: ahora,
             type: 'Ingreso',
-            category: 'Ventas Alimentos',
+            category: cat,
             subcategory: producto.nombre,
             amount: producto.efectivo,
             account_id: accountIdEfectivo,
@@ -161,7 +166,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
           transacciones.push({
             date: ahora,
             type: 'Ingreso',
-            category: 'Ventas Alimentos',
+            category: cat,
             subcategory: producto.nombre,
             amount: producto.transferencia,
             account_id: accountIdBanco,
@@ -176,7 +181,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
           transacciones.push({
             date: ahora,
             type: 'Ingreso',
-            category: 'Ventas Alimentos',
+            category: cat,
             subcategory: producto.nombre,
             amount: producto.credito,
             account_id: null,
@@ -193,7 +198,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
           transacciones.push({
             date: ahora,
             type: 'Egreso',
-            category: 'Gastos operativos',
+            category: 'Gastos Diarios',
             subcategory: gasto.descripcion,
             amount: gasto.valor,
             account_id: accountIdEfectivo,
