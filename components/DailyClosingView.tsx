@@ -6,7 +6,8 @@ import { TablaCuadre } from './cuadre/TablaCuadre'
 import { TablaGastos } from './cuadre/TablaGastos'
 import { ResumenArqueo } from './cuadre/ResumenArqueo'
 import { EstadoCierre } from './cuadre/EstadoCierre'
-import { History, Trash2, Bot, Settings2 } from 'lucide-react'
+import { History, Trash2, Bot, Settings2, Eye } from 'lucide-react'
+import { ModalDetalleCierre } from './cuadre/ModalDetalleCierre'
 
 interface DailyClosingViewProps {
   accounts: Account[]
@@ -58,7 +59,10 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing, onGuarda
 
   const tieneResultado = estado === 'listo' || estado === 'guardando' || estado === 'guardado'
 
+  const [cierreDetalle, setCierreDetalle] = useState<typeof closings[0] | null>(null)
+
   return (
+    <>
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -225,13 +229,22 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing, onGuarda
                           {diff > 0 ? '+' : ''}{diff.toLocaleString('es-EC', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => onDeleteClosing(closing.id)}
-                            className="p-2 text-gray-600 hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-xl transition-all"
-                            title="Eliminar cierre"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => setCierreDetalle(closing)}
+                              className="p-2 text-gray-600 hover:text-[#19A8C7] hover:bg-[#19A8C7]/10 rounded-xl transition-all"
+                              title="Ver detalle"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => onDeleteClosing(closing.id)}
+                              className="p-2 text-gray-600 hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-xl transition-all"
+                              title="Eliminar cierre"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -242,5 +255,17 @@ export function DailyClosingView({ accounts, closings, onDeleteClosing, onGuarda
         </div>
       </div>
     </div>
+
+    {/* Modal detalle de cierre */}
+    {cierreDetalle && (
+      <ModalDetalleCierre
+        closing={cierreDetalle}
+        accountIdEfectivo={accountIdEfectivo}
+        accountIdBanco={accountIdBanco}
+        accountIdCredito={accountIdCredito}
+        onClose={() => setCierreDetalle(null)}
+      />
+    )}
+    </>
   )
 }
