@@ -48,18 +48,29 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
         baseInicial: Number(raw.baseInicial) || 0,
         conteoFisico: Number(raw.conteoFisico) || 0,
         productos: enriquecerProductos(
-          (raw.productos || []).map((p: any) => ({
-            nombre: p.nombre || '',
-            categoria: p.categoria || 'Ventas Alimentos',
-            cantidad: Number(p.cantidad) || 0,
-            efectivo: Number(p.efectivo) || 0,
-            transferencia: Number(p.transferencia) || 0,
-            creditos: (p.creditos || []).map((c: any) => ({
-              cliente: c.cliente || 'Sin nombre',
-              cantidad: Number(c.cantidad) || 0,
-              monto: Number(c.monto) || 0
-            }))
-          }))
+          (raw.productos || []).map((p: any) => {
+            // Robusto: acepta creditos[] (nuevo) o credito number (viejo/fallback)
+            let creditos: { cliente: string; cantidad: number; monto: number }[] = []
+            if (Array.isArray(p.creditos)) {
+              creditos = p.creditos
+                .filter((c: any) => c && Number(c.monto) > 0)
+                .map((c: any) => ({
+                  cliente: c.cliente || 'Sin nombre',
+                  cantidad: Number(c.cantidad) || 0,
+                  monto: Number(c.monto) || 0
+                }))
+            } else if (typeof p.credito === 'number' && p.credito > 0) {
+              creditos = [{ cliente: 'Sin nombre', cantidad: 0, monto: p.credito }]
+            }
+            return {
+              nombre: p.nombre || '',
+              categoria: p.categoria || 'Ventas Alimentos',
+              cantidad: Number(p.cantidad) || 0,
+              efectivo: Number(p.efectivo) || 0,
+              transferencia: Number(p.transferencia) || 0,
+              creditos
+            }
+          })
         ),
         gastos: (raw.gastos || []).map((g: any) => ({
           descripcion: g.descripcion || '',

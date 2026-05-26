@@ -31,19 +31,24 @@ Estructura exacta:
   ]
 }
 
-Reglas:
+Reglas generales:
 - Si un valor no se menciona, usar 0 o array vacío según corresponda
-- Los créditos SIEMPRE deben tener nombre de cliente. Si no se menciona nombre, usar "Sin nombre"
-- Si hay varios clientes con crédito para el mismo producto, crear una entrada en "creditos" por cada uno
 - "tieneFactura" es true solo si el usuario menciona factura o recibo explícitamente
 - Todos los montos son números Float, no strings
 - Si no menciona conteo físico, usar 0
+- NUNCA uses "credito: 0" ni ninguna variante. El campo "creditos" SIEMPRE es un array (vacío [] si no hay créditos)
+
+Reglas para créditos:
+- Si un producto NO tiene crédito → "creditos": []
+- Si un producto tiene crédito SIN nombre de cliente → "creditos": [{"cliente": "Sin nombre", "cantidad": 0, "monto": X}]
+- Si hay varios clientes con crédito para el mismo producto → una entrada en "creditos" por cada cliente
+- Los créditos de desayunos se asignan al plato específico mencionado (ej: crédito en bolón de queso → va en el producto "Bolón de queso")
 
 Reglas de nombre y categoría:
 - Almuerzos completos → nombre: "Almuerzo completo", categoria: "Almuerzo"
 - Segundos → nombre: "Segundo", categoria: "Almuerzo"
 - Sopas → nombre: "Sopa", categoria: "Almuerzo"
-- Platos de desayuno (bolón, patacones, tortilla, americano, etc.) → conservar el nombre específico del plato, categoria: "Desayunos"
+- Platos de desayuno (bolón, patacones, tortilla, americano, ceviche, etc.) → conservar el nombre específico del plato, categoria: "Desayunos"
 - Bebidas (café, jugo, té, etc.) → conservar nombre, categoria: "Bebidas"
 - Porciones (bistec, huevo, arroz, queso, etc.) → conservar nombre, categoria: "Porciones"
 - Cualquier otro plato → conservar nombre, categoria: "Platos a la Carta"`
