@@ -140,14 +140,18 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
 
     try {
       const ahora = new Date().toISOString()
-      const fechaHoy = ahora.split('T')[0]
+
+      // Límites del día en hora LOCAL del browser (corrige desfase UTC-5 Ecuador)
+      const now = new Date()
+      const inicioDiaLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString()
+      const finDiaLocal    = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString()
 
       // Verificar si ya existe un cierre para hoy
       const { data: existente } = await supabase
         .from('daily_closings')
         .select('id')
-        .gte('date', `${fechaHoy}T00:00:00`)
-        .lte('date', `${fechaHoy}T23:59:59`)
+        .gte('date', inicioDiaLocal)
+        .lte('date', finDiaLocal)
         .maybeSingle()
 
       if (existente) {
