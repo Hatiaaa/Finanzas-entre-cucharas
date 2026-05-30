@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Colores del logo Entre Cucharas ── */
+  --color-teal:       #5CB8B2;
+  --color-orange-red: #E8603A;
+  --color-amber:      #F5C23A;
+  --color-navy:       #1A1D2E;
+  --color-cream:      #EDE0C4;
+
+  /* ── Fondos ── */
+  --color-bg-base:    #0E1420;
+  --color-bg-card:    #1A1D2E;
+  --color-bg-border:  #2A2F42;
+
+  /* ── Semánticos ── */
+  --color-positive:   #10b981;
+  --color-negative:   #ef4444;
+
+  /* ── Texto ── */
+  --color-text-muted: #9ca3af;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0E1420;
+  color: #ffffff;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0E1420; }
+::-webkit-scrollbar-thumb { background: #2A2F42; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5CB8B2; }
