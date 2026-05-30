@@ -149,7 +149,7 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
       // Verificar si ya existe un cierre para hoy
       const { data: existente } = await supabase
         .from('daily_closings')
-        .select('id')
+        .select('id, date')
         .gte('date', inicioDiaLocal)
         .lte('date', finDiaLocal)
         .maybeSingle()
@@ -162,6 +162,9 @@ export function useCuadreCaja(accountIdEfectivo: string, accountIdBanco: string,
           setEstado('listo')
           return
         }
+        // Eliminar las transacciones asociadas al cierre anterior
+        // (todas comparten el timestamp exacto del cierre)
+        await supabase.from('transactions').delete().eq('date', existente.date)
         // Eliminar el cierre anterior
         await supabase.from('daily_closings').delete().eq('id', existente.id)
       }
