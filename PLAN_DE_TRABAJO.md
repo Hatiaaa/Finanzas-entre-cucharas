@@ -331,25 +331,41 @@ export const queryKeys = {
 
 ## 7. SISTEMA DE DISEÑO
 
-### Paleta de colores (igual que v1)
+### Logo
+Archivos en `public/`:
+- `logo-256.png` — 256×256 px (118 KB) · uso en sidebar y header
+- `logo-64.png`  — 64×64 px   (10 KB)  · favicon y avatares pequeños
+
+### Paleta de colores — extraída del logo del restaurante
 ```css
-/* Fondos */
---bg-base:    #0B131F   /* fondo principal */
---bg-card:    #151E2B   /* tarjetas */
---bg-border:  #1E293B   /* bordes */
+/* ─── Colores del logo "Entre Cucharas" ─── */
+--teal:       #5CB8B2   /* círculo principal del logo  → primario, banco/transferencias */
+--orange-red: #E8603A   /* cuchara (gradiente cálido)  → secundario, alertas, créditos */
+--amber:      #F5C23A   /* mango de la cuchara         → acento, destacados */
+--navy:       #1A1D2E   /* banner oscuro del logo      → fondo principal y cards */
+--cream:      #EDE0C4   /* aro exterior del logo       → bordes suaves, fondos claros */
 
-/* Colores de acento */
---cyan:       #19A8C7   /* primario, banco/transferencias */
---orange:     #FF8A00   /* secundario, créditos */
---green:      #10b981   /* positivo, efectivo */
---red:        #ef4444   /* negativo, errores */
---yellow:     #FFC72C   /* amarillo cuchara */
+/* ─── Fondos (derivados del navy del logo) ─── */
+--bg-base:    #0E1420   /* fondo principal de la app */
+--bg-card:    #1A1D2E   /* tarjetas y paneles (= navy del logo) */
+--bg-border:  #2A2F42   /* bordes entre elementos */
 
-/* Texto */
+/* ─── Semánticos ─── */
+--positive:   #10b981   /* ingresos / positivo */
+--negative:   #ef4444   /* egresos / negativo / errores */
+
+/* ─── Texto ─── */
 --text-white: #ffffff
 --text-gray:  #9ca3af
 --text-muted: #4b5563
 ```
+
+> **Regla de uso:**
+> - `--teal` → elementos primarios, botones principales, cuenta banco
+> - `--orange-red` → créditos, acciones secundarias, alertas
+> - `--amber` → highlights, badges, volumen de ventas
+> - `--navy / --bg-card` → fondo de tarjetas (refleja el logo)
+> - `--cream` → separadores, bordes sutiles en modo claro eventual
 
 ### Tipografía
 - Font: sistema (Inter si está disponible, fallback sans-serif)
