@@ -1,15 +1,35 @@
-// App.tsx — placeholder de Fase 1
-// Se reemplaza en Fase 2 con Layout + navegación completa
+import { useState } from 'react'
+import { Layout }          from '@/components/features/layout/Layout'
+import { Dashboard }       from '@/components/features/dashboard/Dashboard'
+import { HistoryView }     from '@/components/features/history/HistoryView'
+import { PlaceholderView } from '@/components/features/placeholder/PlaceholderView'
+import { ConfirmModal }    from '@/components/ui/ConfirmModal'
+import type { View }       from '@/components/features/layout/Layout'
 
 export default function App() {
+  const [view, setView] = useState<View>('dashboard')
+
+  const renderView = () => {
+    switch (view) {
+      case 'dashboard':    return <Dashboard onNavigate={setView} />
+      case 'history':      return <HistoryView />
+      case 'transaction':  return <PlaceholderView title="Nueva Transacción" />
+      case 'dailyClosing': return <PlaceholderView title="Cuadre de Caja" />
+      case 'credits':      return <PlaceholderView title="Créditos" />
+      case 'suppliers':    return <PlaceholderView title="Proveedores" />
+      case 'inventory':    return <PlaceholderView title="Inventario" />
+      case 'recipes':      return <PlaceholderView title="Recetas" />
+      case 'settings':     return <PlaceholderView title="Configuración" />
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <img src="/logo-256.png" alt="Entre Cucharas" className="w-24 h-24 mx-auto rounded-2xl" />
-        <h1 className="text-2xl font-bold text-white">Entre Cucharas</h1>
-        <p className="text-[#9ca3af]">Finanzas v2 — infraestructura lista ✓</p>
-        <p className="text-xs text-[#4b5563]">Fase 2 en construcción…</p>
-      </div>
-    </div>
+    <>
+      <Layout current={view} onNav={setView}>
+        {renderView()}
+      </Layout>
+      {/* Modal de confirmación global — reemplaza window.confirm() */}
+      <ConfirmModal />
+    </>
   )
 }
