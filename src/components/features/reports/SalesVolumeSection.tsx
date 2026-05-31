@@ -22,6 +22,22 @@ interface ProductRow {
   lastDate:    string   // última venta (ISO)
 }
 
+// ── Normalización de nombres ─────────────────────────────────────────────────
+/**
+ * Convierte "Bolón chicharrón" → "bolon chicharron"
+ * Maneja: mayúsculas, tildes, eñes y espacios extra.
+ * Usado como clave de agrupación — el nombre que se muestra
+ * es la variante con más unidades vendidas.
+ */
+function normalizeKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')                  // descompone á → a + ́
+    .replace(/[̀-ͯ]/g, '')   // elimina los diacríticos
+    .replace(/\s+/g, ' ')             // colapsa espacios múltiples
+}
+
 // ── Utilidades de fechas ──────────────────────────────────────────────────────
 
 function getRanges(
@@ -142,21 +158,30 @@ export function SalesVolumeSection() {
 
   const inRange = (d: Date, r: DateRange) => d >= r.from && d <= r.to
 
-  // Agrupa transacciones por nombre de producto (case-insensitive, usa el nombre más común)
+  // Agrupa transacciones por nombre de producto.
+  // Clave = nombre normalizado (sin tildes, sin mayúsculas).
+  // Display = variante con más unidades vendidas (la más usada).
   function groupByProduct(txList: typeof salesTx): Map<string, { units: number; revenue: number; lastDate: string }> {
-    // Primero, normalizar a minúsculas para agrupar
-    const rawMap = new Map<string, { units: number; revenue: number; lastDate: string; variants: Map<string, number> }>()
+    const rawMap = new Map<string, {
+      units:    number
+      revenue:  number
+      lastDate: string
+      variants: Map<string, number>  // label original → unidades totales
+    }>()
+
     for (const t of txList) {
-      const key   = (t.subcategory || t.category).toLowerCase().trim()
-      const label = t.subcategory || t.category
+      const label = (t.subcategory || t.category).trim()
+      const key   = normalizeKey(label)
       const ex    = rawMap.get(key) ?? { units: 0, revenue: 0, lastDate: '', variants: new Map() }
+
       ex.units   += t.quantity!
       ex.revenue += t.amount
       if (!ex.lastDate || t.date > ex.lastDate) ex.lastDate = t.date
       ex.variants.set(label, (ex.variants.get(label) ?? 0) + t.quantity!)
       rawMap.set(key, ex)
     }
-    // Elegir el nombre más frecuente como display name
+
+    // Para cada grupo, elige el nombre de variante con más unidades como nombre canónico
     const result = new Map<string, { units: number; revenue: number; lastDate: string }>()
     for (const [, v] of rawMap) {
       let topLabel = '', topCount = 0
