@@ -110,12 +110,12 @@ export function Dashboard({ onNavigate }: Props) {
           const bal = balances.find(b => b.accountId === acc.id)?.balance ?? 0
           const neg = bal < 0
           const colors: Record<string, string> = {
-            CASH:   'border-positive/30 bg-positive/5',
-            BANK:   'border-teal/30 bg-teal/5',
-            CREDIT: 'border-amber/30 bg-amber/5',
+            Efectivo: 'border-positive/30 bg-positive/5',
+            Banco:    'border-teal/30 bg-teal/5',
+            Crédito:  'border-amber/30 bg-amber/5',
           }
           const textColors: Record<string, string> = {
-            CASH: 'text-positive', BANK: 'text-teal', CREDIT: 'text-amber',
+            Efectivo: 'text-positive', Banco: 'text-teal', Crédito: 'text-amber',
           }
           return (
             <Card key={acc.id} className={`p-5 border ${colors[acc.type] ?? ''}`}>
