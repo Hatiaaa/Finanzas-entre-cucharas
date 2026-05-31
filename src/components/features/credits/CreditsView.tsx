@@ -46,22 +46,46 @@ interface CobroModalProps {
   client:      string
   product?:    string   // si es cobro de una sola tx
   accounts:    { id: string; name: string; type: string }[]
-  onConfirm:   (accountId: string) => void
+  onConfirm:   (accountId: string, amount: number) => void
   onClose:     () => void
   loading:     boolean
 }
 
 function CobroModal({ amount, client, product, accounts, onConfirm, onClose, loading }: CobroModalProps) {
-  const [destId, setDestId] = useState(accounts[0]?.id ?? '')
+  const [destId,      setDestId]      = useState(accounts[0]?.id ?? '')
+  const [inputAmount, setInputAmount] = useState(String(amount))
+
+  const parsed    = parseFloat(inputAmount)
+  const isValid   = destId && isFinite(parsed) && parsed > 0 && parsed <= amount
+  const isPartial = isFinite(parsed) && parsed < amount
+
   return (
     <Modal open onClose={onClose} title="Cobrar crédito" size="sm">
       <div className="p-6 space-y-4">
-        <div className="bg-[#0E1420] rounded-xl p-3 space-y-1">
+        {/* Info cliente */}
+        <div className="bg-[#0E1420] rounded-xl p-3 space-y-0.5">
           <p className="text-[#9ca3af] text-xs">Cliente</p>
           <p className="text-white font-bold">{client}</p>
           {product && <p className="text-amber text-xs">{product}</p>}
-          <p className="text-teal font-extrabold text-lg">{formatMoney(amount)}</p>
+          <p className="text-[#4b5563] text-xs mt-1">
+            Pendiente total: <span className="text-amber font-semibold">{formatMoney(amount)}</span>
+          </p>
         </div>
+
+        {/* Monto a cobrar */}
+        <Input
+          label="Monto a cobrar ($)"
+          type="number"
+          min="0.01"
+          step="0.01"
+          max={amount}
+          value={inputAmount}
+          onChange={e => setInputAmount(e.target.value)}
+          hint={isPartial ? `Cobro parcial — quedarán ${formatMoney(amount - parsed)} pendientes` : undefined}
+          error={isFinite(parsed) && parsed > amount ? `No puede superar ${formatMoney(amount)}` : undefined}
+        />
+
+        {/* Cuenta destino */}
         <div>
           <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-2 px-1">
             Depositar en
@@ -76,12 +100,19 @@ function CobroModal({ amount, client, product, accounts, onConfirm, onClose, loa
             ))}
           </select>
         </div>
+
         <div className="flex gap-3 pt-1">
           <Button variant="secondary" className="flex-1" onClick={onClose}>
             <X size={14}/> Cancelar
           </Button>
-          <Button className="flex-1" loading={loading} disabled={!destId} onClick={() => onConfirm(destId)}>
-            <CreditCard size={14}/> Cobrar
+          <Button
+            className="flex-1"
+            loading={loading}
+            disabled={!isValid}
+            onClick={() => onConfirm(destId, parsed)}
+          >
+            <CreditCard size={14}/>
+            {isPartial ? `Cobrar ${formatMoney(parsed)}` : 'Cobrar todo'}
           </Button>
         </div>
       </div>
@@ -447,7 +478,7 @@ export function CreditsView() {
         product={cobroModal.product}
         accounts={destAccounts}
         loading={cobroLoading}
-        onConfirm={destId => ejecutarCobro(cobroModal.client, cobroModal.amount, destId, cobroModal.txId)}
+        onConfirm={(destId, amt) => ejecutarCobro(cobroModal.client, amt, destId, cobroModal.txId)}
         onClose={() => setCobroModal(null)}
       />
     )}
