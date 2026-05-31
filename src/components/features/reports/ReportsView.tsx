@@ -4,6 +4,7 @@ import {
   CartesianGrid, Cell,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Calendar, Target, CheckCircle2, AlertCircle } from 'lucide-react'
+import { SalesVolumeSection } from './SalesVolumeSection'
 import { useTransactions } from '@/hooks/queries/useTransactions'
 import { useAccounts }     from '@/hooks/queries/useAccounts'
 import { useClosings }     from '@/hooks/queries/useClosings'
@@ -170,6 +171,9 @@ export function ReportsView() {
           </select>
         </div>
       </div>
+
+      {/* ── Volumen de Ventas ── */}
+      <SalesVolumeSection />
 
       {/* ── KPIs del año ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
