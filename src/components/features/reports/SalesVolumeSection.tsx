@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import {
   TrendingUp, TrendingDown, ChevronRight, Search, X,
 } from 'lucide-react'
-import { useTransactions } from '@/hooks/queries/useTransactions'
-import { useAccounts }     from '@/hooks/queries/useAccounts'
-import { formatMoney }     from '@/utils/formatters'
+import { useTransactions }   from '@/hooks/queries/useTransactions'
+import { useAccounts }       from '@/hooks/queries/useAccounts'
+import { useProductAliases } from '@/hooks/useProductAliases'
+import { normalizeKey }      from '@/utils/normalize'
+import { formatMoney }       from '@/utils/formatters'
 import { Card }    from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -20,22 +22,6 @@ interface ProductRow {
   prev:        number   // unidades período anterior
   revenue:     number   // recaudado período actual
   lastDate:    string   // última venta (ISO)
-}
-
-// ── Normalización de nombres ─────────────────────────────────────────────────
-/**
- * Convierte "Bolón chicharrón" → "bolon chicharron"
- * Maneja: mayúsculas, tildes, eñes y espacios extra.
- * Usado como clave de agrupación — el nombre que se muestra
- * es la variante con más unidades vendidas.
- */
-function normalizeKey(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')                  // descompone á → a + ́
-    .replace(/[̀-ͯ]/g, '')   // elimina los diacríticos
-    .replace(/\s+/g, ' ')             // colapsa espacios múltiples
 }
 
 // ── Utilidades de fechas ──────────────────────────────────────────────────────
@@ -123,6 +109,7 @@ function getRanges(
 export function SalesVolumeSection() {
   const { data: transactions = [], isLoading: txLoading } = useTransactions()
   const { data: accounts     = [], isLoading: accLoading } = useAccounts()
+  const { resolve: resolveAlias } = useProductAliases()
 
   // Período seleccionado
   const now = new Date()
@@ -170,7 +157,9 @@ export function SalesVolumeSection() {
     }>()
 
     for (const t of txList) {
-      const label = (t.subcategory || t.category).trim()
+      // 1. nombre original  2. aplica alias  3. normaliza para agrupar
+      const raw   = (t.subcategory || t.category).trim()
+      const label = resolveAlias(raw)   // aplica alias si hay uno definido
       const key   = normalizeKey(label)
       const ex    = rawMap.get(key) ?? { units: 0, revenue: 0, lastDate: '', variants: new Map() }
 

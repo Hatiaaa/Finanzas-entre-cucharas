@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { CreditCard, CheckCircle2, AlertCircle, Loader2, User, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTransactions, useCreateTransaction } from '@/hooks/queries/useTransactions'
-import { useAccounts }  from '@/hooks/queries/useAccounts'
+import { useAccounts }   from '@/hooks/queries/useAccounts'
+import { normalizeKey }  from '@/utils/normalize'
 import { useBalances }  from '@/hooks/useBalances'
 import { formatMoney }  from '@/utils/formatters'
 import { nowISO }       from '@/utils/dates'
@@ -60,8 +61,9 @@ export function CreditsView() {
   const clientGroups: ClientGroup[] = useMemo(() => {
     if (!creditAccount) return []
 
-    // Mapa: client → lista de ingresos pendientes (aún no cobrados)
-    const pending = new Map<string, CreditEntry[]>()
+    // Mapa: clave_normalizada → { displayName, lista de ingresos }
+    // La clave normalizada agrupa "Maria", "MARIA", "maría" como un solo deudor.
+    const pending = new Map<string, { displayName: string; entries: CreditEntry[] }>()
 
     // Primero: acumulamos todos los ingresos a la cuenta crédito con cliente
     for (const tx of transactions) {
@@ -70,14 +72,24 @@ export function CreditsView() {
         tx.type === 'Ingreso' &&
         tx.client
       ) {
-        const list = pending.get(tx.client) ?? []
-        list.push({ id: tx.id, date: tx.date, client: tx.client, amount: tx.amount })
-        pending.set(tx.client, list)
+        const key = normalizeKey(tx.client)
+        const ex  = pending.get(key) ?? { displayName: tx.client, entries: [] }
+        // Usa el nombre con más entradas como displayName (el más frecuente)
+        ex.entries.push({ id: tx.id, date: tx.date, client: tx.client, amount: tx.amount })
+        pending.set(key, ex)
       }
     }
 
-    // Después: descontamos las transferencias ya cobradas (por cliente)
-    // Una Transferencia DESDE la cuenta crédito reduce el pendiente de ese cliente
+    // Elegir el nombre que más veces aparece como displayName
+    for (const [key, val] of pending.entries()) {
+      const freq = new Map<string, number>()
+      for (const e of val.entries) freq.set(e.client, (freq.get(e.client) ?? 0) + 1)
+      let top = val.displayName, topN = 0
+      for (const [name, n] of freq) { if (n > topN) { top = name; topN = n } }
+      pending.set(key, { ...val, displayName: top })
+    }
+
+    // Después: descontamos las transferencias ya cobradas (por cliente normalizado)
     const paidByClient = new Map<string, number>()
     for (const tx of transactions) {
       if (
@@ -85,19 +97,20 @@ export function CreditsView() {
         tx.type === 'Transferencia' &&
         tx.client
       ) {
-        paidByClient.set(tx.client, (paidByClient.get(tx.client) ?? 0) + tx.amount)
+        const key = normalizeKey(tx.client)
+        paidByClient.set(key, (paidByClient.get(key) ?? 0) + tx.amount)
       }
     }
 
     // Construimos grupos con el monto pendiente real
     const groups: ClientGroup[] = []
-    for (const [client, credits] of pending.entries()) {
-      const totalCredited = credits.reduce((s, c) => s + c.amount, 0)
-      const totalPaid     = paidByClient.get(client) ?? 0
+    for (const [key, { displayName, entries }] of pending.entries()) {
+      const totalCredited = entries.reduce((s, c) => s + c.amount, 0)
+      const totalPaid     = paidByClient.get(key) ?? 0
       const remaining     = Math.max(0, totalCredited - totalPaid)
 
       if (remaining > 0.005) {
-        groups.push({ client, credits, total: remaining })
+        groups.push({ client: displayName, credits: entries, total: remaining })
       }
     }
 

@@ -1,5 +1,8 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, Save, X, Wallet, Tag } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Pencil, Trash2, Save, X, Wallet, Tag, Merge, AlertCircle } from 'lucide-react'
+import { useTransactions }   from '@/hooks/queries/useTransactions'
+import { useProductAliases } from '@/hooks/useProductAliases'
+import { normalizeKey }      from '@/utils/normalize'
 import {
   useAccounts,
   useCreateAccount,
@@ -411,6 +414,153 @@ function CategoriesSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SECCIÓN UNIFICAR PRODUCTOS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ProductAliasesSection() {
+  const { data: transactions = [] } = useTransactions()
+  const { aliases, setAlias, removeAlias, clearAll } = useProductAliases()
+
+  // Todos los nombres de producto distintos (sin normalizar) que existen en BD
+  const allProductNames = useMemo(() => {
+    const names = new Set<string>()
+    transactions.forEach(t => {
+      if (t.type === 'Ingreso' && typeof t.quantity === 'number' && t.quantity > 0) {
+        names.add((t.subcategory || t.category).trim())
+      }
+    })
+    return [...names].sort((a, b) => a.localeCompare(b, 'es'))
+  }, [transactions])
+
+  // Opciones para el select de destino (excluyendo el propio)
+  const [editingFrom, setEditingFrom] = useState('')
+  const [editingTo,   setEditingTo]   = useState('')
+
+  const handleAdd = () => {
+    if (!editingFrom || !editingTo || editingFrom === editingTo) return
+    setAlias(editingFrom, editingTo)
+    setEditingFrom('')
+    setEditingTo('')
+  }
+
+  // Aliases activos como lista: { from (display), to (canonical) }
+  const activeAliases = useMemo(() => {
+    return Object.entries(aliases).map(([key, canonical]) => {
+      // Buscar el nombre original que más se parece a la clave normalizada
+      const original = allProductNames.find(n => normalizeKey(n) === key) ?? key
+      return { key, original, canonical }
+    })
+  }, [aliases, allProductNames])
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-teal/10 rounded-xl">
+            <Merge size={16} className="text-teal" />
+          </div>
+          <div>
+            <p className="text-white font-bold">Unificar productos</p>
+            <p className="text-[#9ca3af] text-xs">
+              Combina nombres distintos del mismo plato
+            </p>
+          </div>
+        </div>
+        {activeAliases.length > 0 && (
+          <button
+            onClick={() => clearAll()}
+            className="text-[#4b5563] hover:text-negative text-xs"
+          >
+            Limpiar todo
+          </button>
+        )}
+      </div>
+
+      {/* Explicación */}
+      <div className="flex items-start gap-2 bg-teal/5 border border-teal/20 rounded-xl px-3 py-2.5 mb-4">
+        <AlertCircle size={13} className="text-teal mt-0.5 shrink-0" />
+        <p className="text-[#9ca3af] text-xs leading-relaxed">
+          Si la IA escribe a veces <span className="text-white font-semibold">"almuerzo"</span> y
+          otras <span className="text-white font-semibold">"almuerzo completo"</span> para el mismo plato,
+          define aquí que <em>"almuerzo"</em> debe unificarse con <em>"almuerzo completo"</em>.
+          Esto solo afecta el <strong className="text-white">Volumen de Ventas</strong> — no modifica la BD.
+        </p>
+      </div>
+
+      {/* Formulario para agregar alias */}
+      <div className="flex items-end gap-2 mb-4">
+        <div className="flex-1">
+          <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-1.5 px-1">
+            Nombre a unificar
+          </label>
+          <select
+            value={editingFrom}
+            onChange={e => setEditingFrom(e.target.value)}
+            className="w-full bg-[#0E1420] text-white px-3 py-2.5 rounded-xl border border-[#2A2F42] focus:outline-none focus:border-teal text-sm appearance-none"
+          >
+            <option value="">Selecciona un nombre…</option>
+            {allProductNames
+              .filter(n => !aliases[normalizeKey(n)])   // ocultar los que ya tienen alias
+              .map(n => <option key={n} value={n}>{n}</option>)
+            }
+          </select>
+        </div>
+        <div className="shrink-0 pb-1 text-[#4b5563] text-sm font-bold">→</div>
+        <div className="flex-1">
+          <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-1.5 px-1">
+            Nombre canónico (destino)
+          </label>
+          <select
+            value={editingTo}
+            onChange={e => setEditingTo(e.target.value)}
+            className="w-full bg-[#0E1420] text-white px-3 py-2.5 rounded-xl border border-[#2A2F42] focus:outline-none focus:border-teal text-sm appearance-none"
+          >
+            <option value="">Selecciona destino…</option>
+            {allProductNames
+              .filter(n => n !== editingFrom)
+              .map(n => <option key={n} value={n}>{n}</option>)
+            }
+          </select>
+        </div>
+        <Button
+          size="sm"
+          className="shrink-0"
+          disabled={!editingFrom || !editingTo || editingFrom === editingTo}
+          onClick={handleAdd}
+        >
+          <Plus size={13} /> Unificar
+        </Button>
+      </div>
+
+      {/* Lista de aliases activos */}
+      {activeAliases.length === 0 ? (
+        <p className="text-[#4b5563] text-sm italic text-center py-4">
+          Sin unificaciones definidas.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {activeAliases.map(({ key, original, canonical }) => (
+            <div key={key}
+              className="flex items-center gap-3 px-3 py-2.5 bg-[#0E1420] rounded-xl border border-[#2A2F42]"
+            >
+              <span className="text-[#9ca3af] text-sm flex-1 truncate">{original}</span>
+              <span className="text-[#4b5563] text-xs shrink-0">→</span>
+              <span className="text-teal font-semibold text-sm flex-1 truncate">{canonical}</span>
+              <button
+                onClick={() => removeAlias(original)}
+                className="p-1 text-[#4b5563] hover:text-negative rounded-lg transition-all shrink-0"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // VISTA PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -419,13 +569,17 @@ export function SettingsView() {
     <div className="space-y-6 pb-6">
       <div>
         <h2 className="text-2xl font-extrabold text-white">Configuración</h2>
-        <p className="text-[#9ca3af] text-sm mt-0.5">Gestión de cuentas y categorías</p>
+        <p className="text-[#9ca3af] text-sm mt-0.5">Cuentas, categorías y unificación de productos</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card className="p-5"><AccountsSection /></Card>
         <Card className="p-5"><CategoriesSection /></Card>
       </div>
+
+      <Card className="p-5">
+        <ProductAliasesSection />
+      </Card>
     </div>
   )
 }
