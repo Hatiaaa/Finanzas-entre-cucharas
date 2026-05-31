@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Layout }          from '@/components/features/layout/Layout'
-import { Dashboard }       from '@/components/features/dashboard/Dashboard'
-import { HistoryView }     from '@/components/features/history/HistoryView'
-import { PlaceholderView } from '@/components/features/placeholder/PlaceholderView'
+import { Dashboard }         from '@/components/features/dashboard/Dashboard'
+import { HistoryView }       from '@/components/features/history/HistoryView'
+import { DailyClosingView }  from '@/components/features/cuadre/DailyClosingView'
+import { PlaceholderView }   from '@/components/features/placeholder/PlaceholderView'
 import { ConfirmModal }    from '@/components/ui/ConfirmModal'
 import type { View }       from '@/components/features/layout/Layout'
 
@@ -14,7 +15,7 @@ export default function App() {
       case 'dashboard':    return <Dashboard onNavigate={setView} />
       case 'history':      return <HistoryView />
       case 'transaction':  return <PlaceholderView title="Nueva Transacción" />
-      case 'dailyClosing': return <PlaceholderView title="Cuadre de Caja" />
+      case 'dailyClosing': return <DailyClosingView />
       case 'credits':      return <PlaceholderView title="Créditos" />
       case 'suppliers':    return <PlaceholderView title="Proveedores" />
       case 'inventory':    return <PlaceholderView title="Inventario" />

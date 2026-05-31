@@ -1,6 +1,7 @@
 // ─── Enums / Unions ────────────────────────────────────────────────────────
 
-export type AccountType      = 'CASH' | 'BANK' | 'CREDIT'
+// Valores reales en Supabase (heredados del v1 en español)
+export type AccountType      = 'Efectivo' | 'Banco' | 'Crédito'
 export type TransactionType  = 'Ingreso' | 'Egreso' | 'Transferencia'
 export type UnitType         = 'kg' | 'g' | 'l' | 'ml' | 'unidad' | 'docena'
 

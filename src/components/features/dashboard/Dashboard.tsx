@@ -34,7 +34,7 @@ export function Dashboard({ onNavigate }: Props) {
     const now = new Date()
     const m = now.getUTCMonth()
     const y = now.getUTCFullYear()
-    const creditIds = new Set(accounts.filter(a => a.type === 'CREDIT').map(a => a.id))
+    const creditIds = new Set(accounts.filter(a => a.type === 'Crédito').map(a => a.id))
 
     return transactions
       .filter(t => {
@@ -53,7 +53,7 @@ export function Dashboard({ onNavigate }: Props) {
   // ── Evolución últimos 6 meses ─────────────────────────────────────────────
   const chartData = useMemo(() => {
     const now = new Date()
-    const creditIds = new Set(accounts.filter(a => a.type === 'CREDIT').map(a => a.id))
+    const creditIds = new Set(accounts.filter(a => a.type === 'Crédito').map(a => a.id))
     const data: { name: string; Ingresos: number; Egresos: number }[] = []
 
     for (let i = 5; i >= 0; i--) {
@@ -91,7 +91,7 @@ export function Dashboard({ onNavigate }: Props) {
   }
 
   const netMonth = income - expenses
-  const creditIds = new Set(accounts.filter(a => a.type === 'CREDIT').map(a => a.id))
+  const creditIds = new Set(accounts.filter(a => a.type === 'Crédito').map(a => a.id))
   const totalBalance = balances
     .filter(b => !creditIds.has(b.accountId))
     .reduce((s, b) => s + b.balance, 0)
