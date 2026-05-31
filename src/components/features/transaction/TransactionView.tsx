@@ -99,10 +99,13 @@ export function TransactionView() {
     return (cat?.subcategories ?? []).map(s => ({ value: s, label: s }))
   }, [categories, categoryName])
 
-  // Categorías filtradas por tipo de transacción
+  // Categorías filtradas por el tipo de transacción seleccionado.
+  // Si la categoría no tiene tipo asignado la mostramos siempre.
   const categoryOptions = useMemo(() => {
-    return categories.map(c => ({ value: c.name, label: c.name }))
-  }, [categories])
+    return categories
+      .filter(c => !c.type || c.type === txType)
+      .map(c => ({ value: c.name, label: c.name }))
+  }, [categories, txType])
 
   const onSubmit = async (data: FormValues) => {
     await createTx.mutateAsync({
