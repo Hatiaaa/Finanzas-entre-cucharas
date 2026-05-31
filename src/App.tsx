@@ -8,6 +8,8 @@ import { CreditsView }       from '@/components/features/credits/CreditsView'
 import { SuppliersView }     from '@/components/features/suppliers/SuppliersView'
 import { InventoryView }     from '@/components/features/inventory/InventoryView'
 import { RecipesView }       from '@/components/features/recipes/RecipesView'
+import { ReportsView }       from '@/components/features/reports/ReportsView'
+import { SettingsView }      from '@/components/features/settings/SettingsView'
 import { PlaceholderView }   from '@/components/features/placeholder/PlaceholderView'
 import { ConfirmModal }    from '@/components/ui/ConfirmModal'
 import type { View }       from '@/components/features/layout/Layout'
@@ -25,7 +27,8 @@ export default function App() {
       case 'suppliers':    return <SuppliersView />
       case 'inventory':    return <InventoryView />
       case 'recipes':      return <RecipesView />
-      case 'settings':     return <PlaceholderView title="Configuración" />
+      case 'reports':      return <ReportsView />
+      case 'settings':     return <SettingsView />
     }
   }
 

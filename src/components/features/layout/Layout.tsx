@@ -11,6 +11,7 @@ export type View =
   | 'suppliers'
   | 'inventory'
   | 'recipes'
+  | 'reports'
   | 'settings'
 
 const titles: Record<View, string> = {
@@ -22,6 +23,7 @@ const titles: Record<View, string> = {
   suppliers:    'Proveedores',
   inventory:    'Inventario',
   recipes:      'Recetas',
+  reports:      'Reportes',
   settings:     'Configuración',
 }
 

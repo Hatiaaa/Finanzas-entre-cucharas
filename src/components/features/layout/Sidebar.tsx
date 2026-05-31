@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, PlusCircle, List, Bot, Users,
-  Truck, Package, ChefHat, Settings, X,
+  Truck, Package, ChefHat, BarChart2, Settings, X,
 } from 'lucide-react'
 import type { View } from './Layout'
 
@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { id: 'suppliers',    label: 'Proveedores',       icon: Truck           },
   { id: 'inventory',    label: 'Inventario',        icon: Package         },
   { id: 'recipes',      label: 'Recetas',           icon: ChefHat         },
+  { id: 'reports',      label: 'Reportes',          icon: BarChart2       },
   { id: 'settings',     label: 'Configuración',     icon: Settings        },
 ]
 
