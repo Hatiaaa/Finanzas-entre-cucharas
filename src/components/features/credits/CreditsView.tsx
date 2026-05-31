@@ -324,18 +324,18 @@ export function CreditsView() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-5 border border-amber/20 bg-amber/5">
-          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Total pendiente</p>
-          <p className="text-3xl font-extrabold text-amber">{formatMoney(totalPending)}</p>
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-3 sm:p-5 border border-amber/20 bg-amber/5">
+          <p className="text-[#9ca3af] text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-1">Pendiente</p>
+          <p className="text-lg sm:text-3xl font-extrabold text-amber">{formatMoney(totalPending)}</p>
         </Card>
-        <Card className="p-5">
-          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Clientes con deuda</p>
-          <p className="text-3xl font-extrabold text-white">{clientGroups.length}</p>
+        <Card className="p-3 sm:p-5">
+          <p className="text-[#9ca3af] text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-1">Clientes</p>
+          <p className="text-lg sm:text-3xl font-extrabold text-white">{clientGroups.length}</p>
         </Card>
-        <Card className="p-5">
-          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Saldo cuenta crédito</p>
-          <p className={`text-3xl font-extrabold ${creditBalance > 0 ? 'text-amber' : 'text-positive'}`}>
+        <Card className="p-3 sm:p-5">
+          <p className="text-[#9ca3af] text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-1">Saldo cta.</p>
+          <p className={`text-lg sm:text-3xl font-extrabold ${creditBalance > 0 ? 'text-amber' : 'text-positive'}`}>
             {formatMoney(creditBalance)}
           </p>
         </Card>
@@ -362,32 +362,39 @@ export function CreditsView() {
         const isOpen = expanded.has(group.client)
         return (
           <Card key={group.client} className="overflow-hidden">
-            {/* Fila del cliente */}
-            <div className="flex items-center gap-4 p-5">
-              <div className="p-3 bg-amber/10 rounded-xl shrink-0">
-                <User size={20} className="text-amber" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-base truncate">{group.client}</p>
-                <Badge variant="warning">{group.credits.length} crédito{group.credits.length > 1 ? 's' : ''}</Badge>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="text-right">
-                  <p className="text-xl font-extrabold text-amber">{formatMoney(group.total)}</p>
-                  <p className="text-[#4b5563] text-xs">pendiente</p>
+            {/* Fila del cliente — 2 filas en mobile, 1 en desktop */}
+            <div className="p-4 space-y-3">
+              {/* Fila 1: avatar + nombre + badge + chevron */}
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber/10 rounded-xl shrink-0">
+                  <User size={18} className="text-amber" />
                 </div>
-                {/* Cobrar todo el cliente */}
-                <Button size="sm"
-                  onClick={() => setCobroModal({ client: group.client, amount: group.total })}
-                >
-                  <CreditCard size={13}/> Cobrar todo
-                </Button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-base truncate">{group.client}</p>
+                  <Badge variant="warning" className="mt-0.5">
+                    {group.credits.length} crédito{group.credits.length > 1 ? 's' : ''}
+                  </Badge>
+                </div>
                 <button
                   onClick={() => toggleExpand(group.client)}
-                  className="p-2 text-[#4b5563] hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                  className="p-2 text-[#4b5563] hover:text-white hover:bg-white/5 rounded-xl transition-all shrink-0"
                 >
-                  {isOpen ? <ChevronUp size={15}/> : <ChevronDown size={15}/>}
+                  {isOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                 </button>
+              </div>
+
+              {/* Fila 2: monto + botón cobrar */}
+              <div className="flex items-center justify-between pl-1">
+                <div>
+                  <p className="text-2xl font-extrabold text-amber">{formatMoney(group.total)}</p>
+                  <p className="text-[#4b5563] text-xs">pendiente</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setCobroModal({ client: group.client, amount: group.total })}
+                >
+                  <CreditCard size={13}/> Cobrar
+                </Button>
               </div>
             </div>
 
