@@ -153,6 +153,13 @@ export function HistoryView() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
   const paginated  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
+  // Totales del filtro activo (sobre TODOS los resultados, no solo la página)
+  const totals = useMemo(() => {
+    const income   = filtered.filter(t => t.type === 'Ingreso').reduce((s, t) => s + t.amount, 0)
+    const expenses = filtered.filter(t => t.type === 'Egreso' ).reduce((s, t) => s + t.amount, 0)
+    return { income, expenses, net: income - expenses }
+  }, [filtered])
+
   const resetFilters = () => {
     setSearch(''); setFilterAcc(''); setFilterType('')
     setFilterCat(''); setStartDate(''); setEndDate(''); setPage(1)
@@ -169,6 +176,24 @@ export function HistoryView() {
       <div>
         <h2 className="text-2xl font-extrabold text-white">Historial</h2>
         <p className="text-[#9ca3af] text-sm mt-0.5">{filtered.length} de {transactions.length} movimientos</p>
+      </div>
+
+      {/* Totales del filtro activo */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-4 border border-positive/20 bg-positive/5">
+          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Ingresos</p>
+          <p className="text-positive text-xl font-extrabold">{formatMoney(totals.income)}</p>
+        </Card>
+        <Card className="p-4 border border-orange-red/20 bg-orange-red/5">
+          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Egresos</p>
+          <p className="text-orange-red text-xl font-extrabold">{formatMoney(totals.expenses)}</p>
+        </Card>
+        <Card className={`p-4 border ${totals.net >= 0 ? 'border-teal/20 bg-teal/5' : 'border-negative/20 bg-negative/5'}`}>
+          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Neto</p>
+          <p className={`text-xl font-extrabold ${totals.net >= 0 ? 'text-teal' : 'text-negative'}`}>
+            {totals.net >= 0 ? '+' : ''}{formatMoney(totals.net)}
+          </p>
+        </Card>
       </div>
 
       {/* Filtros */}
