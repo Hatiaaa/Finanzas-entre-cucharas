@@ -1,23 +1,36 @@
 import { useMemo, useState } from 'react'
-import { CreditCard, CheckCircle2, AlertCircle, Loader2, User, ChevronDown, ChevronUp } from 'lucide-react'
-import { useTransactions, useCreateTransaction } from '@/hooks/queries/useTransactions'
+import {
+  CreditCard, CheckCircle2, AlertCircle, User,
+  ChevronDown, ChevronUp, Trash2, Pencil, Save, X,
+} from 'lucide-react'
+import {
+  useTransactions,
+  useCreateTransaction,
+  useDeleteTransaction,
+  useUpdateTransaction,
+} from '@/hooks/queries/useTransactions'
 import { useAccounts }   from '@/hooks/queries/useAccounts'
+import { useBalances }   from '@/hooks/useBalances'
+import { useModalStore } from '@/store/useModalStore'
+import { formatMoney }   from '@/utils/formatters'
 import { normalizeKey }  from '@/utils/normalize'
-import { useBalances }  from '@/hooks/useBalances'
-import { formatMoney }  from '@/utils/formatters'
-import { nowISO }       from '@/utils/dates'
+import { nowISO }        from '@/utils/dates'
 import { Card }    from '@/components/ui/Card'
 import { Button }  from '@/components/ui/Button'
+import { Modal }   from '@/components/ui/Modal'
+import { Input }   from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { Badge }   from '@/components/ui/Badge'
+import type { Transaction } from '@/types'
 
-// ── Tipos internos ────────────────────────────────────────────────────────────
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 
 interface CreditEntry {
-  id:     string
-  date:   string
-  client: string
-  amount: number
+  id:      string
+  date:    string
+  client:  string
+  product: string   // subcategory del producto
+  amount:  number
 }
 
 interface ClientGroup {
@@ -26,61 +39,147 @@ interface ClientGroup {
   total:   number
 }
 
-// ── Vista ─────────────────────────────────────────────────────────────────────
+// ── Modal: seleccionar cuenta para cobrar ──────────────────────────────────────
+
+interface CobroModalProps {
+  amount:      number
+  client:      string
+  product?:    string   // si es cobro de una sola tx
+  accounts:    { id: string; name: string; type: string }[]
+  onConfirm:   (accountId: string) => void
+  onClose:     () => void
+  loading:     boolean
+}
+
+function CobroModal({ amount, client, product, accounts, onConfirm, onClose, loading }: CobroModalProps) {
+  const [destId, setDestId] = useState(accounts[0]?.id ?? '')
+  return (
+    <Modal open onClose={onClose} title="Cobrar crédito" size="sm">
+      <div className="p-6 space-y-4">
+        <div className="bg-[#0E1420] rounded-xl p-3 space-y-1">
+          <p className="text-[#9ca3af] text-xs">Cliente</p>
+          <p className="text-white font-bold">{client}</p>
+          {product && <p className="text-amber text-xs">{product}</p>}
+          <p className="text-teal font-extrabold text-lg">{formatMoney(amount)}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-2 px-1">
+            Depositar en
+          </label>
+          <select
+            value={destId}
+            onChange={e => setDestId(e.target.value)}
+            className="w-full bg-[#0E1420] text-white px-4 py-2.5 rounded-xl border border-[#2A2F42] focus:outline-none focus:border-teal text-sm appearance-none"
+          >
+            {accounts.map(a => (
+              <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
+            <X size={14}/> Cancelar
+          </Button>
+          <Button className="flex-1" loading={loading} disabled={!destId} onClick={() => onConfirm(destId)}>
+            <CreditCard size={14}/> Cobrar
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Modal: editar crédito ──────────────────────────────────────────────────────
+
+interface EditModalProps {
+  entry:    CreditEntry
+  onSave:   (updated: Partial<CreditEntry>) => void
+  onClose:  () => void
+  loading:  boolean
+}
+
+function EditCreditModal({ entry, onSave, onClose, loading }: EditModalProps) {
+  const [product, setProduct] = useState(entry.product)
+  const [amount,  setAmount]  = useState(String(entry.amount))
+  const [date,    setDate]    = useState(entry.date.split('T')[0])
+
+  const isValid = product.trim() !== '' && Number(amount) > 0
+
+  return (
+    <Modal open onClose={onClose} title="Editar crédito" size="sm">
+      <div className="p-6 space-y-4">
+        <Input
+          label="Producto"
+          value={product}
+          onChange={e => setProduct(e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Monto ($)" type="number" min="0" step="0.01"
+            value={amount} onChange={e => setAmount(e.target.value)} />
+          <Input label="Fecha" type="date"
+            value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        <div className="flex gap-3 pt-1">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
+            <X size={14}/> Cancelar
+          </Button>
+          <Button className="flex-1" loading={loading} disabled={!isValid}
+            onClick={() => onSave({ product: product.trim(), amount: Number(amount), date })}>
+            <Save size={14}/> Guardar
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Vista principal ────────────────────────────────────────────────────────────
 
 export function CreditsView() {
   const { data: transactions = [], isLoading: txLoading } = useTransactions()
   const { data: accounts     = [], isLoading: accLoading } = useAccounts()
   const createTx = useCreateTransaction()
+  const deleteTx = useDeleteTransaction()
+  const updateTx = useUpdateTransaction()
+  const openConfirm = useModalStore(s => s.openConfirm)
 
-  // Cuenta crédito (la única de tipo 'Crédito')
-  const creditAccount = useMemo(
-    () => accounts.find(a => a.type === 'Crédito'),
-    [accounts],
-  )
+  const creditAccount = useMemo(() => accounts.find(a => a.type === 'Crédito'), [accounts])
+  const destAccounts  = useMemo(() => accounts.filter(a => a.type === 'Efectivo' || a.type === 'Banco'), [accounts])
 
-  // Cuentas destino para recibir el cobro (Efectivo o Banco)
-  const destAccounts = useMemo(
-    () => accounts.filter(a => a.type === 'Efectivo' || a.type === 'Banco'),
-    [accounts],
-  )
+  const [expanded,    setExpanded]    = useState<Set<string>>(new Set())
+  const [errorMsg,    setErrorMsg]    = useState('')
 
-  const [destAccountId, setDestAccountId] = useState('')
-  const [payingClient,  setPayingClient]  = useState<string | null>(null)   // cliente en proceso
-  const [paidClients,   setPaidClients]   = useState<Set<string>>(new Set()) // feedback visual
-  const [expanded,      setExpanded]      = useState<Set<string>>(new Set())
-  const [errorMsg,      setErrorMsg]      = useState('')
+  // Estado para modal de cobro
+  const [cobroModal, setCobroModal] = useState<{
+    client: string; amount: number; product?: string; txId?: string
+  } | null>(null)
+  const [cobroLoading, setCobroLoading] = useState(false)
 
-  // Cuenta destino activa (primer resultado si no hay selección)
-  const activeDest = destAccountId || destAccounts[0]?.id || ''
+  // Estado para edición de crédito individual
+  const [editEntry, setEditEntry] = useState<CreditEntry | null>(null)
 
-  // ── Cálculo de créditos pendientes por cliente ────────────────────────────
-  // Lógica: créditos adeudados = Ingresos al creditAccount con client != null
-  //         créditos cobrados  = Transferencias DESDE creditAccount con client != null
-  // Pendiente neto por cliente = adeudado - cobrado
+  // ── Cálculo de créditos pendientes ──────────────────────────────────────
   const clientGroups: ClientGroup[] = useMemo(() => {
     if (!creditAccount) return []
 
-    // Mapa: clave_normalizada → { displayName, lista de ingresos }
-    // La clave normalizada agrupa "Maria", "MARIA", "maría" como un solo deudor.
     const pending = new Map<string, { displayName: string; entries: CreditEntry[] }>()
 
-    // Primero: acumulamos todos los ingresos a la cuenta crédito con cliente
     for (const tx of transactions) {
-      if (
-        tx.accountId === creditAccount.id &&
-        tx.type === 'Ingreso' &&
-        tx.client
-      ) {
+      if (tx.accountId === creditAccount.id && tx.type === 'Ingreso' && tx.client) {
         const key = normalizeKey(tx.client)
         const ex  = pending.get(key) ?? { displayName: tx.client, entries: [] }
-        // Usa el nombre con más entradas como displayName (el más frecuente)
-        ex.entries.push({ id: tx.id, date: tx.date, client: tx.client, amount: tx.amount })
+        ex.entries.push({
+          id:      tx.id,
+          date:    tx.date,
+          client:  tx.client,
+          product: tx.subcategory || tx.category || '—',
+          amount:  tx.amount,
+        })
         pending.set(key, ex)
       }
     }
 
-    // Elegir el nombre que más veces aparece como displayName
+    // Elegir displayName con más apariciones
     for (const [key, val] of pending.entries()) {
       const freq = new Map<string, number>()
       for (const e of val.entries) freq.set(e.client, (freq.get(e.client) ?? 0) + 1)
@@ -89,57 +188,40 @@ export function CreditsView() {
       pending.set(key, { ...val, displayName: top })
     }
 
-    // Después: descontamos las transferencias ya cobradas (por cliente normalizado)
+    // Restar pagos ya cobrados
     const paidByClient = new Map<string, number>()
     for (const tx of transactions) {
-      if (
-        tx.accountId === creditAccount.id &&
-        tx.type === 'Transferencia' &&
-        tx.client
-      ) {
+      if (tx.accountId === creditAccount.id && tx.type === 'Transferencia' && tx.client) {
         const key = normalizeKey(tx.client)
         paidByClient.set(key, (paidByClient.get(key) ?? 0) + tx.amount)
       }
     }
 
-    // Construimos grupos con el monto pendiente real
     const groups: ClientGroup[] = []
     for (const [key, { displayName, entries }] of pending.entries()) {
       const totalCredited = entries.reduce((s, c) => s + c.amount, 0)
       const totalPaid     = paidByClient.get(key) ?? 0
       const remaining     = Math.max(0, totalCredited - totalPaid)
-
       if (remaining > 0.005) {
         groups.push({ client: displayName, credits: entries, total: remaining })
       }
     }
-
     return groups.sort((a, b) => b.total - a.total)
   }, [transactions, creditAccount])
 
   const totalPending = clientGroups.reduce((s, g) => s + g.total, 0)
-
-  // Balance actual de la cuenta crédito (para mostrar en el header)
-  const balances = useBalances(accounts, transactions)
+  const balances     = useBalances(accounts, transactions)
   const creditBalance = useMemo(
     () => balances.find(b => b.accountId === creditAccount?.id)?.balance ?? 0,
     [balances, creditAccount],
   )
 
-  // ── Cobrar crédito de un cliente (secuencial, sin duplicados) ─────────────
-  /**
-   * CRÍTICO: en v1 se usaba Promise.all() para cobrar múltiples créditos
-   * simultáneamente, causando insercciones duplicadas en la BD.
-   * Aquí procesamos cada pago de forma SECUENCIAL con for…await.
-   */
-  const handleCobrar = async (client: string, amount: number) => {
-    if (!creditAccount || !activeDest || payingClient) return
+  // ── Cobrar (individual o total del cliente) ──────────────────────────────
+  const ejecutarCobro = async (client: string, amount: number, destAccountId: string, txId?: string) => {
+    if (!creditAccount) return
+    setCobroLoading(true)
     setErrorMsg('')
-    setPayingClient(client)
-
     try {
-      // Un solo registro: Transferencia del monto total pendiente del cliente
-      // Desde cuenta crédito → cuenta destino (efectivo o banco)
       await createTx.mutateAsync({
         date:          nowISO(),
         type:          'Transferencia',
@@ -147,65 +229,62 @@ export function CreditsView() {
         subcategory:   'Cobro de crédito',
         amount,
         accountId:     creditAccount.id,
-        toAccountId:   activeDest,
+        toAccountId:   destAccountId,
         client,
         description:   `Cobro de crédito: ${client}`,
         hasAttachment: false,
       })
-
-      setPaidClients(prev => new Set(prev).add(client))
-    } catch (err) {
-      setErrorMsg(`Error cobrando a ${client}. Intenta nuevamente.`)
+      setCobroModal(null)
+    } catch {
+      setErrorMsg(`Error al cobrar a ${client}. Intenta nuevamente.`)
     } finally {
-      setPayingClient(null)
+      setCobroLoading(false)
     }
   }
 
-  const handleCobrarTodo = async () => {
-    if (!creditAccount || !activeDest || payingClient) return
-    setErrorMsg('')
-
-    // ✅ Fix: procesar SECUENCIALMENTE — nunca con Promise.all()
-    for (const group of clientGroups) {
-      if (paidClients.has(group.client)) continue
-      await handleCobrar(group.client, group.total)
-    }
-  }
-
-  const toggleExpand = (client: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      next.has(client) ? next.delete(client) : next.add(client)
-      return next
-    })
-  }
-
-  // ── Loading ───────────────────────────────────────────────────────────────
-  if (txLoading || accLoading) {
-    return (
-      <div className="h-64 flex items-center justify-center"><Spinner size="lg" /></div>
+  // ── Eliminar crédito individual ──────────────────────────────────────────
+  const handleDeleteCredit = (entry: CreditEntry) => {
+    openConfirm(
+      'Eliminar crédito',
+      `¿Eliminar el crédito de ${formatMoney(entry.amount)} (${entry.product}) de ${entry.client}?`,
+      () => deleteTx.mutate(entry.id),
     )
   }
 
-  // Sin cuenta crédito configurada
-  if (!creditAccount) {
-    return (
-      <div className="space-y-6 pb-6">
-        <div>
-          <h2 className="text-2xl font-extrabold text-white">Créditos</h2>
-        </div>
-        <Card className="p-10 flex flex-col items-center gap-4 text-center">
-          <AlertCircle size={40} className="text-amber" />
-          <p className="text-white font-bold">No hay cuenta de crédito</p>
-          <p className="text-[#9ca3af] text-sm">
-            Crea una cuenta de tipo <span className="text-amber font-semibold">Crédito</span> en Configuración para gestionar créditos.
-          </p>
-        </Card>
-      </div>
-    )
+  // ── Editar crédito individual ────────────────────────────────────────────
+  const handleSaveEdit = async (updated: Partial<CreditEntry>) => {
+    if (!editEntry) return
+    const full = transactions.find(t => t.id === editEntry.id)
+    if (!full) return
+    await updateTx.mutateAsync({
+      ...full,
+      subcategory: updated.product ?? full.subcategory,
+      amount:      updated.amount  ?? full.amount,
+      date:        updated.date    ? new Date(updated.date + 'T12:00:00').toISOString() : full.date,
+    } as Transaction)
+    setEditEntry(null)
   }
+
+  const toggleExpand = (client: string) =>
+    setExpanded(prev => { const n = new Set(prev); n.has(client) ? n.delete(client) : n.add(client); return n })
+
+  if (txLoading || accLoading) return (
+    <div className="h-64 flex items-center justify-center"><Spinner size="lg" /></div>
+  )
+
+  if (!creditAccount) return (
+    <div className="space-y-6 pb-6">
+      <div><h2 className="text-2xl font-extrabold text-white">Créditos</h2></div>
+      <Card className="p-10 flex flex-col items-center gap-4 text-center">
+        <AlertCircle size={40} className="text-amber" />
+        <p className="text-white font-bold">No hay cuenta de crédito</p>
+        <p className="text-[#9ca3af] text-sm">Crea una cuenta de tipo <span className="text-amber font-semibold">Crédito</span> en Configuración.</p>
+      </Card>
+    </div>
+  )
 
   return (
+    <>
     <div className="space-y-6 pb-6">
       {/* Header */}
       <div>
@@ -216,21 +295,15 @@ export function CreditsView() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-5 border border-amber/20 bg-amber/5">
-          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">
-            Total pendiente
-          </p>
+          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Total pendiente</p>
           <p className="text-3xl font-extrabold text-amber">{formatMoney(totalPending)}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">
-            Clientes con deuda
-          </p>
+          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Clientes con deuda</p>
           <p className="text-3xl font-extrabold text-white">{clientGroups.length}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">
-            Saldo cuenta crédito
-          </p>
+          <p className="text-[#9ca3af] text-xs font-semibold uppercase tracking-widest mb-1">Saldo cuenta crédito</p>
           <p className={`text-3xl font-extrabold ${creditBalance > 0 ? 'text-amber' : 'text-positive'}`}>
             {formatMoney(creditBalance)}
           </p>
@@ -244,142 +317,118 @@ export function CreditsView() {
             <CheckCircle2 size={40} className="text-positive" />
           </div>
           <p className="text-white font-bold text-lg">¡Sin créditos pendientes!</p>
-          <p className="text-[#9ca3af] text-sm">Todos los créditos han sido cobrados.</p>
         </Card>
       )}
 
-      {/* Panel de cobro */}
-      {clientGroups.length > 0 && (
-        <Card className="p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            {/* Selector de cuenta destino */}
-            <div className="flex-1">
-              <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-2 px-1">
-                Depositar cobros en
-              </label>
-              <select
-                value={activeDest}
-                onChange={e => setDestAccountId(e.target.value)}
-                className="w-full bg-[#0E1420] text-white px-4 py-2.5 rounded-xl border border-[#2A2F42] focus:border-teal focus:ring-1 focus:ring-teal/30 outline-none transition-all appearance-none"
-              >
-                {destAccounts.map(a => (
-                  <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Cobrar todo */}
-            <Button
-              onClick={handleCobrarTodo}
-              loading={payingClient !== null}
-              disabled={paidClients.size === clientGroups.length}
-              className="shrink-0"
-            >
-              <CreditCard size={15} />
-              Cobrar todo ({formatMoney(totalPending)})
-            </Button>
-          </div>
-
-          {errorMsg && (
-            <div className="flex items-center gap-2 bg-negative/10 border border-negative/30 text-negative text-sm px-4 py-2.5 rounded-xl">
-              <AlertCircle size={14} />
-              {errorMsg}
-            </div>
-          )}
-        </Card>
+      {errorMsg && (
+        <div className="flex items-center gap-2 bg-negative/10 border border-negative/30 text-negative text-sm px-4 py-2.5 rounded-xl">
+          <AlertCircle size={14}/> {errorMsg}
+        </div>
       )}
 
       {/* Lista de clientes */}
       {clientGroups.map(group => {
-        const isPaying = payingClient === group.client
-        const isPaid   = paidClients.has(group.client)
-        const isOpen   = expanded.has(group.client)
-
+        const isOpen = expanded.has(group.client)
         return (
-          <Card key={group.client} className={`
-            overflow-hidden transition-all
-            ${isPaid ? 'opacity-60 border-positive/30' : ''}
-          `}>
-            {/* Fila principal del cliente */}
+          <Card key={group.client} className="overflow-hidden">
+            {/* Fila del cliente */}
             <div className="flex items-center gap-4 p-5">
-              {/* Avatar */}
-              <div className={`
-                p-3 rounded-xl shrink-0
-                ${isPaid ? 'bg-positive/10' : 'bg-amber/10'}
-              `}>
-                {isPaid
-                  ? <CheckCircle2 size={20} className="text-positive" />
-                  : <User size={20} className="text-amber" />
-                }
+              <div className="p-3 bg-amber/10 rounded-xl shrink-0">
+                <User size={20} className="text-amber" />
               </div>
-
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-white font-bold text-base truncate">{group.client}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Badge variant={isPaid ? 'success' : 'warning'}>
-                    {isPaid ? 'Cobrado' : `${group.credits.length} crédito${group.credits.length > 1 ? 's' : ''}`}
-                  </Badge>
-                </div>
+                <Badge variant="warning">{group.credits.length} crédito{group.credits.length > 1 ? 's' : ''}</Badge>
               </div>
-
-              {/* Monto + acciones */}
               <div className="flex items-center gap-3 shrink-0">
                 <div className="text-right">
-                  <p className={`text-xl font-extrabold ${isPaid ? 'text-positive' : 'text-amber'}`}>
-                    {formatMoney(group.total)}
-                  </p>
+                  <p className="text-xl font-extrabold text-amber">{formatMoney(group.total)}</p>
                   <p className="text-[#4b5563] text-xs">pendiente</p>
                 </div>
-
-                {!isPaid && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleCobrar(group.client, group.total)}
-                    loading={isPaying}
-                    disabled={payingClient !== null && !isPaying}
-                  >
-                    {isPaying ? '' : 'Cobrar'}
-                  </Button>
-                )}
-
+                {/* Cobrar todo el cliente */}
+                <Button size="sm"
+                  onClick={() => setCobroModal({ client: group.client, amount: group.total })}
+                >
+                  <CreditCard size={13}/> Cobrar todo
+                </Button>
                 <button
                   onClick={() => toggleExpand(group.client)}
                   className="p-2 text-[#4b5563] hover:text-white hover:bg-white/5 rounded-xl transition-all"
                 >
-                  {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  {isOpen ? <ChevronUp size={15}/> : <ChevronDown size={15}/>}
                 </button>
               </div>
             </div>
 
-            {/* Detalle de créditos del cliente */}
+            {/* Detalle de créditos */}
             {isOpen && (
               <div className="border-t border-[#2A2F42]">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[#0E1420] text-[#9ca3af] text-xs uppercase">
-                      <th className="px-5 py-2 text-left font-semibold">Fecha</th>
-                      <th className="px-5 py-2 text-right font-semibold">Monto</th>
+                      <th className="px-5 py-2.5 text-left font-semibold">Fecha</th>
+                      <th className="px-5 py-2.5 text-left font-semibold">Producto</th>
+                      <th className="px-5 py-2.5 text-right font-semibold">Monto</th>
+                      <th className="px-5 py-2.5 text-center font-semibold w-32">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#2A2F42]">
                     {group.credits.map(c => (
-                      <tr key={c.id} className="hover:bg-white/2">
-                        <td className="px-5 py-2.5 text-[#9ca3af]">
+                      <tr key={c.id} className="hover:bg-white/2 group">
+                        <td className="px-5 py-3 text-[#9ca3af] whitespace-nowrap">
                           {new Date(c.date).toLocaleDateString('es-EC', {
                             day: '2-digit', month: 'short', year: 'numeric',
                           })}
                         </td>
-                        <td className="px-5 py-2.5 text-right text-amber font-bold font-mono">
+                        <td className="px-5 py-3 text-white font-medium">
+                          {c.product}
+                        </td>
+                        <td className="px-5 py-3 text-right text-amber font-bold font-mono">
                           {formatMoney(c.amount)}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            {/* Cobrar esta transacción */}
+                            <button
+                              onClick={() => setCobroModal({
+                                client:  c.client,
+                                amount:  c.amount,
+                                product: c.product,
+                                txId:    c.id,
+                              })}
+                              className="p-1.5 text-[#4b5563] hover:text-teal hover:bg-teal/10 rounded-lg transition-all"
+                              title="Cobrar este crédito"
+                            >
+                              <CreditCard size={13}/>
+                            </button>
+                            {/* Editar */}
+                            <button
+                              onClick={() => setEditEntry(c)}
+                              className="p-1.5 text-[#4b5563] hover:text-amber hover:bg-amber/10 rounded-lg transition-all"
+                              title="Editar"
+                            >
+                              <Pencil size={13}/>
+                            </button>
+                            {/* Eliminar */}
+                            <button
+                              onClick={() => handleDeleteCredit(c)}
+                              className="p-1.5 text-[#4b5563] hover:text-negative hover:bg-negative/10 rounded-lg transition-all"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={13}/>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                     <tr className="bg-[#0E1420]">
-                      <td className="px-5 py-2 text-[#9ca3af] text-xs font-bold uppercase">Total adeudado</td>
-                      <td className="px-5 py-2 text-right font-extrabold text-amber">
+                      <td colSpan={2} className="px-5 py-2 text-[#9ca3af] text-xs font-bold uppercase text-right">
+                        Total adeudado
+                      </td>
+                      <td className="px-5 py-2 text-right font-extrabold text-amber font-mono">
                         {formatMoney(group.credits.reduce((s, c) => s + c.amount, 0))}
                       </td>
+                      <td/>
                     </tr>
                   </tbody>
                 </table>
@@ -389,5 +438,29 @@ export function CreditsView() {
         )
       })}
     </div>
+
+    {/* Modal de cobro */}
+    {cobroModal && (
+      <CobroModal
+        amount={cobroModal.amount}
+        client={cobroModal.client}
+        product={cobroModal.product}
+        accounts={destAccounts}
+        loading={cobroLoading}
+        onConfirm={destId => ejecutarCobro(cobroModal.client, cobroModal.amount, destId, cobroModal.txId)}
+        onClose={() => setCobroModal(null)}
+      />
+    )}
+
+    {/* Modal de edición */}
+    {editEntry && (
+      <EditCreditModal
+        entry={editEntry}
+        loading={updateTx.isPending}
+        onSave={handleSaveEdit}
+        onClose={() => setEditEntry(null)}
+      />
+    )}
+    </>
   )
 }
