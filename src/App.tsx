@@ -5,6 +5,9 @@ import { HistoryView }       from '@/components/features/history/HistoryView'
 import { DailyClosingView }  from '@/components/features/cuadre/DailyClosingView'
 import { TransactionView }   from '@/components/features/transaction/TransactionView'
 import { CreditsView }       from '@/components/features/credits/CreditsView'
+import { SuppliersView }     from '@/components/features/suppliers/SuppliersView'
+import { InventoryView }     from '@/components/features/inventory/InventoryView'
+import { RecipesView }       from '@/components/features/recipes/RecipesView'
 import { PlaceholderView }   from '@/components/features/placeholder/PlaceholderView'
 import { ConfirmModal }    from '@/components/ui/ConfirmModal'
 import type { View }       from '@/components/features/layout/Layout'
@@ -19,9 +22,9 @@ export default function App() {
       case 'transaction':  return <TransactionView />
       case 'dailyClosing': return <DailyClosingView />
       case 'credits':      return <CreditsView />
-      case 'suppliers':    return <PlaceholderView title="Proveedores" />
-      case 'inventory':    return <PlaceholderView title="Inventario" />
-      case 'recipes':      return <PlaceholderView title="Recetas" />
+      case 'suppliers':    return <SuppliersView />
+      case 'inventory':    return <InventoryView />
+      case 'recipes':      return <RecipesView />
       case 'settings':     return <PlaceholderView title="Configuración" />
     }
   }

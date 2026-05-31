@@ -61,6 +61,36 @@ export function useCreateRecipe() {
   })
 }
 
+export function useUpdateRecipe() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (recipe: Recipe) => {
+      const { error: rErr } = await supabase
+        .from('recipes')
+        .update({ name: recipe.name, selling_price: recipe.sellingPrice, category: recipe.category })
+        .eq('id', recipe.id)
+      if (rErr) throw rErr
+
+      // Reemplazar ingredientes: borrar los viejos e insertar los nuevos
+      const { error: delErr } = await supabase
+        .from('recipe_ingredients').delete().eq('recipe_id', recipe.id)
+      if (delErr) throw delErr
+
+      if (recipe.ingredients.length > 0) {
+        const { error: riErr } = await supabase.from('recipe_ingredients').insert(
+          recipe.ingredients.map(ri => ({
+            recipe_id:     recipe.id,
+            ingredient_id: ri.ingredientId,
+            amount:        ri.amount,
+          }))
+        )
+        if (riErr) throw riErr
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.recipes }),
+  })
+}
+
 export function useDeleteRecipe() {
   const qc = useQueryClient()
   return useMutation({
