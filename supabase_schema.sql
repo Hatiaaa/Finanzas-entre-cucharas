@@ -86,6 +86,18 @@ CREATE TABLE daily_closings (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 8b. Vínculo Transacciones → Cierre de Caja
+-- Cada cierre genera muchas transacciones con el MISMO timestamp. Antes el
+-- "reemplazo" de un cierre borraba/reinsertaba buscando por fecha exacta, lo
+-- cual es frágil. closing_id las vincula de forma precisa. Es NULLABLE para no
+-- romper transacciones existentes ni las que se crean manualmente (sin cierre).
+-- ON DELETE SET NULL: borrar un cierre no borra las transacciones por cascada;
+-- el borrado de transacciones se maneja explícitamente en la app.
+-- Idempotente: sirve también como migración sobre una base ya existente.
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS closing_id UUID REFERENCES daily_closings(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_closing_id ON transactions(closing_id);
+
 -- Habilitar RLS (Seguridad a nivel de fila) - Opcional por ahora, pero recomendado
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;

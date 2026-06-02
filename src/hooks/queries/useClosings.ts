@@ -33,9 +33,17 @@ export function useDeleteClosing() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      // Borrar primero las transacciones del cierre (vinculadas por closing_id).
+      // Si no se borran, los ingresos/egresos quedarían huérfanos y el saldo
+      // de las cuentas seguiría inflado tras eliminar el cierre.
+      const { error: txErr } = await supabase.from('transactions').delete().eq('closing_id', id)
+      if (txErr) throw txErr
       const { error } = await supabase.from('daily_closings').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.closings }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.closings })
+      qc.invalidateQueries({ queryKey: QK.transactions })
+    },
   })
 }

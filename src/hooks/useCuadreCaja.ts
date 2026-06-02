@@ -192,12 +192,33 @@ export function useCuadreCaja(
       if (existente) {
         const confirmar = window.confirm('Ya existe un cierre para el día de hoy. ¿Deseas reemplazarlo?')
         if (!confirmar) { setEstado('listo'); return }
-        // Borrar transacciones del cierre anterior (mismo timestamp exacto)
-        await supabase.from('transactions').delete().eq('date', existente.date)
+        // Borrar las transacciones del cierre anterior:
+        //  · cierres nuevos   → vinculadas por closing_id (preciso y seguro)
+        //  · cierres antiguos → sin closing_id: fallback por timestamp exacto
+        await supabase.from('transactions').delete().eq('closing_id', existente.id)
+        await supabase.from('transactions').delete().is('closing_id', null).eq('date', existente.date)
         await supabase.from('daily_closings').delete().eq('id', existente.id)
       }
 
-      // Construir transacciones
+      // 1) Crear el cierre PRIMERO para obtener su id y vincular las
+      //    transacciones por closing_id (relación precisa, no por timestamp).
+      const { data: cierre, error: cErr } = await supabase
+        .from('daily_closings')
+        .insert([{
+          date:            ahora,
+          account_id:      accountIdEfectivo,
+          system_balance:  resumen.saldoTeorico,
+          physical_amount: datos.conteoFisico,
+          difference:      resumen.diferencia,
+          notes:           texto,
+        }])
+        .select('id')
+        .single()
+      if (cErr || !cierre) throw new Error(`Error al guardar cierre: ${cErr?.message ?? 'sin id'}`)
+
+      const closingId = (cierre as { id: string }).id
+
+      // 2) Construir transacciones, cada una vinculada al cierre recién creado.
       const txs: Record<string, unknown>[] = []
 
       for (const p of datos.productos) {
@@ -206,19 +227,19 @@ export function useCuadreCaja(
           txs.push({ date: ahora, type: 'Ingreso', category: cat, subcategory: p.nombre,
             amount: p.efectivo, account_id: accountIdEfectivo,
             quantity: p.cantidad > 0 ? p.cantidad : null,
-            description: `Cierre del día - ${p.nombre}`, has_attachment: false })
+            description: `Cierre del día - ${p.nombre}`, has_attachment: false, closing_id: closingId })
 
         if (p.transferencia > 0)
           txs.push({ date: ahora, type: 'Ingreso', category: cat, subcategory: p.nombre,
             amount: p.transferencia, account_id: accountIdBanco, quantity: null,
-            description: `Cierre del día - ${p.nombre} (transferencia)`, has_attachment: false })
+            description: `Cierre del día - ${p.nombre} (transferencia)`, has_attachment: false, closing_id: closingId })
 
         for (const cr of p.creditos) {
           if (cr.monto > 0)
             txs.push({ date: ahora, type: 'Ingreso', category: cat, subcategory: p.nombre,
               amount: cr.monto, account_id: accountIdCredito || null,
               quantity: cr.cantidad > 0 ? cr.cantidad : null,
-              description: `Cierre del día - ${p.nombre}`, has_attachment: false, client: cr.cliente })
+              description: `Cierre del día - ${p.nombre}`, has_attachment: false, client: cr.cliente, closing_id: closingId })
         }
       }
 
@@ -226,23 +247,17 @@ export function useCuadreCaja(
         if (g.valor > 0)
           txs.push({ date: ahora, type: 'Egreso', category: 'Gastos Diarios',
             subcategory: g.descripcion, amount: g.valor, account_id: accountIdEfectivo,
-            description: g.descripcion, has_attachment: g.tieneFactura })
+            description: g.descripcion, has_attachment: g.tieneFactura, closing_id: closingId })
       }
 
+      // 3) Insertar transacciones. Si falla, revertir el cierre para no dejar huérfano.
       if (txs.length > 0) {
         const { error: txErr } = await supabase.from('transactions').insert(txs)
-        if (txErr) throw new Error(`Error al guardar transacciones: ${txErr.message}`)
+        if (txErr) {
+          await supabase.from('daily_closings').delete().eq('id', closingId)
+          throw new Error(`Error al guardar transacciones: ${txErr.message}`)
+        }
       }
-
-      const { error: cErr } = await supabase.from('daily_closings').insert([{
-        date:            ahora,
-        account_id:      accountIdEfectivo,
-        system_balance:  resumen.saldoTeorico,
-        physical_amount: datos.conteoFisico,
-        difference:      resumen.diferencia,
-        notes:           texto,
-      }])
-      if (cErr) throw new Error(`Error al guardar cierre: ${cErr.message}`)
 
       // Invalidar queries para que TanStack Query recargue automáticamente
       await qc.invalidateQueries({ queryKey: QK.transactions })
