@@ -37,7 +37,13 @@ export function useTransactions() {
         const { data, error } = await supabase
           .from('transactions')
           .select('*')
+          // ⚠️ El segundo criterio (id) es OBLIGATORIO: ordenar solo por `date`
+          // deja indeterminado el orden de filas con la misma marca de tiempo
+          // (un cierre crea decenas de filas con timestamp idéntico). Sin un
+          // desempate único, la paginación con .range() duplica o salta filas
+          // en el borde de cada página → el saldo mostrado se descuadra.
           .order('date', { ascending: false })
+          .order('id',   { ascending: false })
           .range(from, from + step - 1)
 
         if (error) throw error

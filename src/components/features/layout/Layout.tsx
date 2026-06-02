@@ -8,6 +8,7 @@ export type View =
   | 'history'
   | 'dailyClosing'
   | 'credits'
+  | 'reconciliation'
   | 'suppliers'
   | 'inventory'
   | 'recipes'
@@ -20,6 +21,7 @@ const titles: Record<View, string> = {
   history:      'Historial',
   dailyClosing: 'Cuadre de Caja',
   credits:      'Créditos',
+  reconciliation: 'Conciliación',
   suppliers:    'Proveedores',
   inventory:    'Inventario',
   recipes:      'Recetas',

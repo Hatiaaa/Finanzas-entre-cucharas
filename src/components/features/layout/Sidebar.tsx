@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, PlusCircle, List, Bot, Users,
-  Truck, Package, ChefHat, BarChart2, Settings, X,
+  Truck, Package, ChefHat, BarChart2, Settings, X, Scale,
 } from 'lucide-react'
 import type { View } from './Layout'
 
@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { id: 'history',      label: 'Historial',         icon: List            },
   { id: 'dailyClosing', label: 'Cuadre de Caja',    icon: Bot             },
   { id: 'credits',      label: 'Créditos',          icon: Users           },
+  { id: 'reconciliation', label: 'Conciliación',    icon: Scale           },
   { id: 'suppliers',    label: 'Proveedores',       icon: Truck           },
   { id: 'inventory',    label: 'Inventario',        icon: Package         },
   { id: 'recipes',      label: 'Recetas',           icon: ChefHat         },
