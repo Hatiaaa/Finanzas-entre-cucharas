@@ -253,18 +253,40 @@ export function CreditsView() {
     setCobroLoading(true)
     setErrorMsg('')
     try {
-      await createTx.mutateAsync({
-        date:          nowISO(),
-        type:          'Transferencia',
-        category:      'Crédito',
-        subcategory:   'Cobro de crédito',
-        amount,
-        accountId:     creditAccount.id,
-        toAccountId:   destAccountId,
-        client,
-        description:   `Cobro de crédito: ${client}`,
-        hasAttachment: false,
-      })
+      if (txId) {
+        // Cobro de un crédito individual específico:
+        // Buscamos la transacción de crédito original de tipo Ingreso en la cuenta de crédito
+        const originalTx = transactions.find(t => t.id === txId)
+        if (originalTx) {
+          // Opción A: Modificar la transacción de crédito original para convertirla en una transferencia.
+          // Pero la base de datos Supabase registra la transferencia de forma que restamos del crédito y sumamos al banco/efectivo.
+          // Para liquidar este crédito específico y que ya no aparezca en las deudas, cambiamos su accountId al de destino
+          // (o sea, deja de ser deuda y pasa a ser un ingreso normal de Caja o Banco, por lo que desaparece de Créditos).
+          await updateTx.mutateAsync({
+            ...originalTx,
+            accountId: destAccountId,
+            type: 'Ingreso',
+            description: `Cobro de crédito: ${originalTx.description || originalTx.subcategory || 'Crédito'}`
+          })
+        }
+      } else {
+        // Cobrar TODO el saldo del cliente
+        // Creamos una transacción de tipo 'Transferencia' desde la cuenta de crédito hacia la cuenta destino (Caja/Banco).
+        // Esto incrementa la cuenta destino y en la cuenta de Crédito se registra como transferencia saliente.
+        // El cálculo de groups en clientGroups resta estas transferencias globales del total de ingresos del cliente.
+        await createTx.mutateAsync({
+          date:          nowISO(),
+          type:          'Transferencia',
+          category:      'Crédito',
+          subcategory:   'Cobro de crédito',
+          amount,
+          accountId:     creditAccount.id,
+          toAccountId:   destAccountId,
+          client,
+          description:   `Cobro de crédito: ${client}`,
+          hasAttachment: false,
+        })
+      }
       setCobroModal(null)
     } catch {
       setErrorMsg(`Error al cobrar a ${client}. Intenta nuevamente.`)
@@ -278,7 +300,9 @@ export function CreditsView() {
     openConfirm(
       'Eliminar crédito',
       `¿Eliminar el crédito de ${formatMoney(entry.amount)} (${entry.product}) de ${entry.client}?`,
-      () => deleteTx.mutate(entry.id),
+      () => {
+        deleteTx.mutate(entry.id)
+      },
     )
   }
 
