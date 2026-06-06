@@ -14,7 +14,6 @@ import { useBalances }   from '@/hooks/useBalances'
 import { useModalStore } from '@/store/useModalStore'
 import { formatMoney }   from '@/utils/formatters'
 import { normalizeKey }  from '@/utils/normalize'
-import { nowISO }        from '@/utils/dates'
 import { Card }    from '@/components/ui/Card'
 import { Button }  from '@/components/ui/Button'
 import { Modal }   from '@/components/ui/Modal'
@@ -248,44 +247,68 @@ export function CreditsView() {
   )
 
   // ── Cobrar (individual o total del cliente) ──────────────────────────────
+  // MODELO: "liquidar líneas". Un crédito es un Ingreso en la cuenta Crédito.
+  // Cobrarlo = sacar ESA línea de la cuenta Crédito (moverla a Efectivo/Banco).
+  // Así la línea desaparece de la deuda y el detalle siempre cuadra con el total.
+  // No se crean Transferencias "Cobro de crédito" (ese modelo dejaba pagos
+  // sueltos que descuadraban el detalle y hacían desaparecer tarjetas al borrar).
   const ejecutarCobro = async (client: string, amount: number, destAccountId: string, txId?: string) => {
     if (!creditAccount) return
     setCobroLoading(true)
     setErrorMsg('')
     try {
+      // Determinar qué línea(s) de crédito liquidar.
+      let lineas: CreditEntry[]
       if (txId) {
-        // Cobro de un crédito individual específico:
-        // Buscamos la transacción de crédito original de tipo Ingreso en la cuenta de crédito
-        const originalTx = transactions.find(t => t.id === txId)
-        if (originalTx) {
-          // Opción A: Modificar la transacción de crédito original para convertirla en una transferencia.
-          // Pero la base de datos Supabase registra la transferencia de forma que restamos del crédito y sumamos al banco/efectivo.
-          // Para liquidar este crédito específico y que ya no aparezca en las deudas, cambiamos su accountId al de destino
-          // (o sea, deja de ser deuda y pasa a ser un ingreso normal de Caja o Banco, por lo que desaparece de Créditos).
-          await updateTx.mutateAsync({
-            ...originalTx,
-            accountId: destAccountId,
-            type: 'Ingreso',
-            description: `Cobro de crédito: ${originalTx.description || originalTx.subcategory || 'Crédito'}`
-          })
-        }
+        const one = transactions.find(t => t.id === txId)
+        if (!one) throw new Error('Crédito no encontrado')
+        lineas = [{
+          id: one.id, date: one.date, client: one.client ?? client,
+          product: one.subcategory || one.category || '—', amount: one.amount,
+        }]
       } else {
-        // Cobrar TODO el saldo del cliente
-        // Creamos una transacción de tipo 'Transferencia' desde la cuenta de crédito hacia la cuenta destino (Caja/Banco).
-        // Esto incrementa la cuenta destino y en la cuenta de Crédito se registra como transferencia saliente.
-        // El cálculo de groups en clientGroups resta estas transferencias globales del total de ingresos del cliente.
-        await createTx.mutateAsync({
-          date:          nowISO(),
-          type:          'Transferencia',
-          category:      'Crédito',
-          subcategory:   'Cobro de crédito',
-          amount,
-          accountId:     creditAccount.id,
-          toAccountId:   destAccountId,
-          client,
-          description:   `Cobro de crédito: ${client}`,
-          hasAttachment: false,
-        })
+        // Cobro del cliente completo: liquidar sus líneas (más antiguas primero).
+        const grupo = clientGroups.find(g => g.client === client)
+        lineas = grupo ? [...grupo.credits].sort((a, b) => a.date.localeCompare(b.date)) : []
+      }
+
+      let restante = amount
+      for (const linea of lineas) {
+        if (restante <= 0.005) break
+        const full = transactions.find(t => t.id === linea.id)
+        if (!full) continue
+
+        if (restante >= linea.amount - 0.005) {
+          // Cobro total de esta línea: la movemos fuera de Crédito.
+          await updateTx.mutateAsync({
+            ...full,
+            accountId:   destAccountId,
+            type:        'Ingreso',
+            description: `Cobro de crédito: ${full.subcategory || 'Crédito'}`,
+          })
+          restante -= linea.amount
+        } else {
+          // Cobro parcial de esta línea: la dividimos.
+          //  · la original se queda en Crédito con el saldo restante
+          //  · se crea un Ingreso en la cuenta destino por lo cobrado
+          const pagado = +restante.toFixed(2)
+          await updateTx.mutateAsync({
+            ...full,
+            amount: +(linea.amount - pagado).toFixed(2),
+          })
+          await createTx.mutateAsync({
+            date:          full.date,
+            type:          'Ingreso',
+            category:      full.category || 'Crédito',
+            subcategory:   full.subcategory || 'Crédito',
+            amount:        pagado,
+            accountId:     destAccountId,
+            client,
+            description:   `Cobro parcial de crédito: ${full.subcategory || 'Crédito'}`,
+            hasAttachment: false,
+          })
+          restante = 0
+        }
       }
       setCobroModal(null)
     } catch {
@@ -488,7 +511,7 @@ export function CreditsView() {
                         Total adeudado
                       </td>
                       <td className="px-5 py-2 text-right font-extrabold text-amber font-mono">
-                        {formatMoney(group.credits.reduce((s, c) => s + c.amount, 0))}
+                        {formatMoney(group.total)}
                       </td>
                       <td/>
                     </tr>
