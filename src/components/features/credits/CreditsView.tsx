@@ -12,6 +12,7 @@ import {
 import { useAccounts }   from '@/hooks/queries/useAccounts'
 import { useBalances }   from '@/hooks/useBalances'
 import { useModalStore } from '@/store/useModalStore'
+import { supabase }      from '@/lib/supabase'
 import { formatMoney }   from '@/utils/formatters'
 import { normalizeKey }  from '@/utils/normalize'
 import { Card }    from '@/components/ui/Card'
@@ -272,6 +273,12 @@ export function CreditsView() {
         lineas = grupo ? [...grupo.credits].sort((a, b) => a.date.localeCompare(b.date)) : []
       }
 
+      // Líneas que tocamos al cobrar: hay que DESVINCULARLAS del cierre
+      // (closing_id = null). Un crédito ya cobrado/partido deja de ser parte
+      // del cuadre; si conservara closing_id, reemplazar o eliminar ese cierre
+      // borraría dinero ya cobrado.
+      const tocadas: string[] = []
+
       let restante = amount
       for (const linea of lineas) {
         if (restante <= 0.005) break
@@ -286,6 +293,7 @@ export function CreditsView() {
             type:        'Ingreso',
             description: `Cobro de crédito: ${full.subcategory || 'Crédito'}`,
           })
+          tocadas.push(full.id)
           restante -= linea.amount
         } else {
           // Cobro parcial de esta línea: la dividimos.
@@ -307,8 +315,14 @@ export function CreditsView() {
             description:   `Cobro parcial de crédito: ${full.subcategory || 'Crédito'}`,
             hasAttachment: false,
           })
+          tocadas.push(full.id)
           restante = 0
         }
+      }
+
+      // Romper el vínculo con el cierre en las líneas cobradas.
+      if (tocadas.length > 0) {
+        await supabase.from('transactions').update({ closing_id: null }).in('id', tocadas)
       }
       setCobroModal(null)
     } catch {
