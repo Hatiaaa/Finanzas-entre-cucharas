@@ -1,0 +1,17 @@
+# Normalizar todos los archivos de texto a LF (fin de línea Unix).
+# Evita el ruido CRLF↔LF que ensucia git status y los diffs.
+* text=auto eol=lf
+
+# Binarios — git no debe tocar sus finales de línea
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.svg   text
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.pdf   binary
