@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { History, Trash2, Bot, Settings2, Eye } from 'lucide-react'
+import { History, Trash2, Bot, Settings2, Eye, ChevronLeft, ChevronRight, X, List } from 'lucide-react'
 import { useAccounts }           from '@/hooks/queries/useAccounts'
 import { useClosings, useDeleteClosing } from '@/hooks/queries/useClosings'
 import { useCuadreCaja }         from '@/hooks/useCuadreCaja'
@@ -55,6 +55,35 @@ export function DailyClosingView() {
 
   const tieneResultado = estado === 'listo' || estado === 'guardando' || estado === 'guardado'
   const getAccName = (id: string) => accounts.find(a => a.id === id)?.name ?? '—'
+
+  // ── Historial: filtros de fecha + paginación ──────────────────────────────
+  const PER_PAGE = 10
+  const [desde, setDesde]             = useState('')
+  const [hasta, setHasta]             = useState('')
+  const [page, setPage]               = useState(1)
+  const [mostrarTodo, setMostrarTodo] = useState(false)
+
+  const closingsFiltrados = useMemo(() => {
+    // Comparar por el día LOCAL (Ecuador), igual que lo que ve el usuario.
+    const diaLocal = (iso: string) =>
+      new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+    return closings.filter(c => {
+      const d = diaLocal(c.date)
+      if (desde && d < desde) return false
+      if (hasta && d > hasta) return false
+      return true
+    })
+  }, [closings, desde, hasta])
+
+  const totalPages = Math.max(1, Math.ceil(closingsFiltrados.length / PER_PAGE))
+  const pageActual = Math.min(page, totalPages)
+  const visibles   = mostrarTodo
+    ? closingsFiltrados
+    : closingsFiltrados.slice((pageActual - 1) * PER_PAGE, pageActual * PER_PAGE)
+  const hayFiltro  = desde !== '' || hasta !== ''
+
+  // Volver a la primera página cuando cambian los filtros o el modo "mostrar todo"
+  useEffect(() => { setPage(1) }, [desde, hasta, mostrarTodo])
 
   if (accLoading) return (
     <div className="h-64 flex items-center justify-center"><Spinner size="lg" /></div>
@@ -161,10 +190,64 @@ export function DailyClosingView() {
           <div>
             <h3 className="text-white font-bold text-lg">Historial de Cierres</h3>
             {!clLoading && (
-              <p className="text-[#9ca3af] text-xs">{closings.length} cierres registrados</p>
+              <p className="text-[#9ca3af] text-xs">
+                {hayFiltro
+                  ? `${closingsFiltrados.length} de ${closings.length} cierres`
+                  : `${closings.length} cierres registrados`}
+              </p>
             )}
           </div>
         </div>
+
+        {/* Filtros: rango de fechas + mostrar todo */}
+        {!clLoading && closings.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-5">
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest mb-1.5 px-1">
+                Desde
+              </label>
+              <input
+                type="date"
+                value={desde}
+                max={hasta || undefined}
+                onChange={e => setDesde(e.target.value)}
+                className="w-full bg-[#0E1420] text-white px-3 py-2 rounded-xl border border-[#2A2F42] focus:border-amber focus:ring-1 focus:ring-amber/30 outline-none transition-all text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest mb-1.5 px-1">
+                Hasta
+              </label>
+              <input
+                type="date"
+                value={hasta}
+                min={desde || undefined}
+                onChange={e => setHasta(e.target.value)}
+                className="w-full bg-[#0E1420] text-white px-3 py-2 rounded-xl border border-[#2A2F42] focus:border-amber focus:ring-1 focus:ring-amber/30 outline-none transition-all text-sm"
+              />
+            </div>
+            {hayFiltro && (
+              <button
+                onClick={() => { setDesde(''); setHasta('') }}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-[#9ca3af] hover:text-white bg-[#0E1420] hover:bg-white/5 border border-[#2A2F42] rounded-xl transition-all"
+                title="Limpiar filtros"
+              >
+                <X size={13} /> Limpiar
+              </button>
+            )}
+            <button
+              onClick={() => setMostrarTodo(v => !v)}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold border rounded-xl transition-all ${
+                mostrarTodo
+                  ? 'text-amber bg-amber/10 border-amber/30'
+                  : 'text-[#9ca3af] hover:text-white bg-[#0E1420] hover:bg-white/5 border-[#2A2F42]'
+              }`}
+              title={mostrarTodo ? 'Volver a paginar' : 'Mostrar todos en una página'}
+            >
+              <List size={13} /> {mostrarTodo ? 'Paginar' : 'Mostrar todo'}
+            </button>
+          </div>
+        )}
 
         {clLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
@@ -182,14 +265,16 @@ export function DailyClosingView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2A2F42]">
-                {closings.length === 0 ? (
+                {visibles.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-10 text-center text-[#4b5563] italic text-sm">
-                      No hay cierres registrados aún
+                      {closings.length === 0
+                        ? 'No hay cierres registrados aún'
+                        : 'No hay cierres en ese rango de fechas'}
                     </td>
                   </tr>
                 ) : (
-                  closings.map(c => {
+                  visibles.map(c => {
                     const diff  = c.difference
                     const color = diff === 0 ? 'text-[#9ca3af]' : diff > 0 ? 'text-positive' : 'text-negative'
                     return (
@@ -240,6 +325,34 @@ export function DailyClosingView() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Paginación */}
+        {!clLoading && !mostrarTodo && totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-4 border-t border-[#2A2F42]">
+            <p className="text-xs text-[#9ca3af]">
+              Mostrando {(pageActual - 1) * PER_PAGE + 1}–{Math.min(pageActual * PER_PAGE, closingsFiltrados.length)} de {closingsFiltrados.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={pageActual <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-[#0E1420] border border-[#2A2F42] rounded-lg hover:bg-white/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} /> Anterior
+              </button>
+              <span className="text-xs text-[#9ca3af] px-1">
+                Página <span className="text-white font-semibold">{pageActual}</span> de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={pageActual >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-[#0E1420] border border-[#2A2F42] rounded-lg hover:bg-white/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Siguiente <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         )}
       </Card>
