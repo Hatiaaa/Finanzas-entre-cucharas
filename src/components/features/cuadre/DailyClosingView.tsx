@@ -5,6 +5,7 @@ import { useClosings, useDeleteClosing } from '@/hooks/queries/useClosings'
 import { useCuadreCaja }         from '@/hooks/useCuadreCaja'
 import { useModalStore }         from '@/store/useModalStore'
 import { formatMoney, formatDate, formatTime } from '@/utils/formatters'
+import { todayLocal } from '@/utils/dates'
 import { Card }    from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
 import { FormularioTexto }    from './FormularioTexto'
@@ -47,6 +48,7 @@ export function DailyClosingView() {
 
   const {
     texto, setTexto,
+    fechaCierre, setFechaCierre,
     datos, resumen, estado, errorMsg,
     procesarTexto, actualizarProducto, actualizarGasto,
     actualizarConteoFisico, eliminarProducto, eliminarGasto,
@@ -104,12 +106,33 @@ export function DailyClosingView() {
         </div>
       </div>
 
-      {/* Selector de cuentas */}
+      {/* Configuración del cierre */}
       <Card className="p-5">
         <div className="flex items-center gap-2 mb-4">
           <Settings2 size={16} className="text-[#9ca3af]" />
-          <p className="text-[#9ca3af] text-sm font-medium">Cuentas para registrar el cierre</p>
+          <p className="text-[#9ca3af] text-sm font-medium">Configuración del cierre</p>
         </div>
+
+        {/* Fecha del cierre */}
+        <div className="mb-4">
+          <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-2 px-1">
+            Fecha del cierre
+          </label>
+          <input
+            type="date"
+            value={fechaCierre}
+            max={todayLocal()}
+            onChange={e => setFechaCierre(e.target.value)}
+            disabled={estado === 'guardando' || estado === 'guardado'}
+            className="w-full sm:w-auto bg-[#0E1420] text-white px-4 py-2.5 rounded-xl border border-[#2A2F42] focus:border-amber focus:ring-1 focus:ring-amber/30 outline-none transition-all disabled:opacity-50"
+          />
+          {fechaCierre !== todayLocal() && (
+            <p className="text-amber text-xs mt-1.5 px-1">
+              Registrando un cierre de una fecha pasada
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-[#9ca3af] uppercase tracking-widest mb-2 px-1">

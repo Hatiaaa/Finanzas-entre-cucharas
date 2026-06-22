@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { QK } from '@/lib/queryClient'
 import { calcularTotales, enriquecerProductos } from '@/lib/calculos'
-import { todayUTCBounds } from '@/utils/dates'
+import { todayLocal } from '@/utils/dates'
 import type {
   DatosCuadre,
   ResumenCuadre,
@@ -25,6 +25,9 @@ export function useCuadreCaja(
   const [resumen,  setResumen]  = useState<ResumenCuadre | null>(null)
   const [estado,   setEstado]   = useState<EstadoCuadre>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  // Fecha del cierre (YYYY-MM-DD, hora local Ecuador). Por defecto hoy;
+  // editable para registrar el cierre de un día pasado.
+  const [fechaCierre, setFechaCierre] = useState(todayLocal())
 
   // ── Recalcular resumen ────────────────────────────────────────────────────
   const recalcular = useCallback((nuevosDatos: DatosCuadre) => {
@@ -178,10 +181,17 @@ export function useCuadreCaja(
     setErrorMsg(null)
 
     try {
-      const ahora = new Date().toISOString()
-      const { start, end } = todayUTCBounds()
+      // Fecha del cierre: si es hoy usamos la hora real; si es un día pasado,
+      // el mediodía local (evita que la zona horaria lo corra al día anterior).
+      const ahora = fechaCierre === todayLocal()
+        ? new Date().toISOString()
+        : new Date(`${fechaCierre}T12:00:00`).toISOString()
 
-      // Verificar si ya existe un cierre para hoy (hora local Ecuador)
+      // Límites del día elegido (hora local Ecuador) para detectar duplicados
+      const start = new Date(`${fechaCierre}T00:00:00`).toISOString()
+      const end   = new Date(`${fechaCierre}T23:59:59`).toISOString()
+
+      // Verificar si ya existe un cierre para la fecha elegida
       const { data: existente } = await supabase
         .from('daily_closings')
         .select('id, date')
@@ -190,7 +200,7 @@ export function useCuadreCaja(
         .maybeSingle()
 
       if (existente) {
-        const confirmar = window.confirm('Ya existe un cierre para el día de hoy. ¿Deseas reemplazarlo?')
+        const confirmar = window.confirm('Ya existe un cierre para esa fecha. ¿Deseas reemplazarlo?')
         if (!confirmar) { setEstado('listo'); return }
         // Borrar las transacciones del cierre anterior:
         //  · cierres nuevos   → vinculadas por closing_id (preciso y seguro)
@@ -270,7 +280,7 @@ export function useCuadreCaja(
       setErrorMsg(msg)
       setEstado('error')
     }
-  }, [datos, resumen, accountIdEfectivo, accountIdBanco, accountIdCredito, texto, qc, onGuardado])
+  }, [datos, resumen, accountIdEfectivo, accountIdBanco, accountIdCredito, texto, fechaCierre, qc, onGuardado])
 
   const resetear = useCallback(() => {
     setTexto('')
@@ -278,10 +288,12 @@ export function useCuadreCaja(
     setResumen(null)
     setEstado('idle')
     setErrorMsg(null)
+    setFechaCierre(todayLocal())
   }, [])
 
   return {
     texto, setTexto,
+    fechaCierre, setFechaCierre,
     datos, resumen, estado, errorMsg,
     procesarTexto,
     actualizarProducto,
